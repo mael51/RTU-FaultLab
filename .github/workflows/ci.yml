@@ -9,36 +9,6 @@ on:
 jobs:
   build-and-test:
     runs-on: windows-latest
-
-  sanitizers:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Configure
-        run: cmake -G "Unix Makefiles" -DRTU_ENABLE_SANITIZERS=ON -S . -B build
-      - name: Build
-        run: cmake --build build
-      - name: Test
-        run: cd build && ./rtufaultlab_tests
-
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install lcov
-        run: sudo apt-get install -y lcov
-      - name: Configure
-        run: cmake -G "Unix Makefiles" -DRTU_ENABLE_COVERAGE=ON -S . -B build
-      - name: Build
-        run: cmake --build build
-      - name: Test
-        run: cd build && ./rtufaultlab_tests
-      - name: Coverage report
-        run: |
-          cd build
-          lcov --capture --directory . --output-file coverage.info
-          lcov --remove coverage.info '/usr/*' --output-file coverage.info
-          lcov --list coverage.info
     steps:
       - uses: actions/checkout@v4
       - name: Setup MSYS2
@@ -81,3 +51,33 @@ jobs:
         run: |
           python bench/runner/cli.py bench/campaigns/smoke.yaml --dut build/rtufaultlab_dut_host.exe --reports bench/reports
         shell: bash
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -G "Unix Makefiles" -DRTU_ENABLE_SANITIZERS=ON -S . -B build
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: cd build && ./rtufaultlab_tests
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install lcov
+        run: sudo apt-get install -y lcov
+      - name: Configure
+        run: cmake -G "Unix Makefiles" -DRTU_ENABLE_COVERAGE=ON -S . -B build
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: cd build && ./rtufaultlab_tests
+      - name: Coverage report
+        run: |
+          cd build
+          lcov --capture --directory . --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info
+          lcov --list coverage.info
