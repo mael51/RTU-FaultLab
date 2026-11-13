@@ -1,0 +1,20 @@
+campaign:
+  id: modbus_robustness
+  seed: 481516
+  target: virtual_dut
+  timeout_ms: 250
+  tests:
+    - id: TC-007
+      requirement: FR-004
+      action: write_single_register
+      address: 0x0000
+      value: 0x0004
+      expect:
+        dut_output_state: 0x0000
+    - id: TC-006
+      requirement: FR-004
+      action: write_single_register
+      address: 0x0001
+      value: 0x0001
+      expect:
+        dut_output_state: 0x0000

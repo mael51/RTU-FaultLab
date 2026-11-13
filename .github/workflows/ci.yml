@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -G "Unix Makefiles" -DRTU_ENABLE_SANITIZERS=ON -S . -B build
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: cd build && ./rtufaultlab_tests
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install lcov
+        run: sudo apt-get install -y lcov
+      - name: Configure
+        run: cmake -G "Unix Makefiles" -DRTU_ENABLE_COVERAGE=ON -S . -B build
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: cd build && ./rtufaultlab_tests
+      - name: Coverage report
+        run: |
+          cd build
+          lcov --capture --directory . --output-file coverage.info
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info
+          lcov --list coverage.info
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-clang
+      - name: Configure
+        shell: msys2 {0}
+        run: |
+          cmake -G "MSYS Makefiles" -S . -B build
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build build
+      - name: Test C++
+        shell: msys2 {0}
+        run: |
+          cd build
+          ./rtufaultlab_tests.exe
+      - name: Format check
+        shell: msys2 {0}
+        run: |
+          find firmware tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror
+      - name: Static analysis (cppcheck)
+        shell: msys2 {0}
+        run: |
+          pacman -S --noconfirm mingw-w64-x86_64-cppcheck
+          cppcheck --enable=warning,style,performance,portability --error-exitcode=1 firmware/ tests/ 2>&1 | tail -20
+      - name: Python tests
+        run: |
+          pip install pytest pyyaml
+          python -m pytest tests/integration -q
+        shell: bash
+      - name: Smoke campaign
+        run: |
+          python bench/runner/cli.py bench/campaigns/smoke.yaml --dut build/rtufaultlab_dut_host.exe --reports bench/reports
+        shell: bash

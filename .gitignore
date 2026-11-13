@@ -1,0 +1,25 @@
+# Build directories
+build/
+build_*/
+build_san/
+build_cov/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Reports (generated)
+bench/reports/
+
+# Misc
+*.gcno
+*.gcda
+*.gcov
+input.txt

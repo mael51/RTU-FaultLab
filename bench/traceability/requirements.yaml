@@ -1,0 +1,82 @@
+# Traceability matrix: requirement_id -> test_case_id -> result
+# Initial skeleton (Phase 1). Filled as tests are implemented.
+
+requirements:
+  FR-001:
+    description: Runner loads valid YAML campaign and rejects malformed with explicit error.
+    tests: [TC-CFG-001]
+    priority: MUST
+  FR-002:
+    description: DUT parses RTU frame and validates address, function, length, CRC.
+    tests: [TC-002, TC-003, TC-004, TC-013]
+    priority: MUST
+  FR-003:
+    description: FC03 supported on documented registers.
+    tests: [TC-001]
+    priority: MUST
+  FR-004:
+    description: FC06 only on modifiable registers and allowed values.
+    tests: [TC-006, TC-007]
+    priority: MUST
+  FR-005:
+    description: Illegal functions/addresses/values produce exception and leave state unchanged.
+    tests: [TC-002, TC-003, TC-005, TC-006, TC-007]
+    priority: MUST
+  FR-006:
+    description: Outputs forced OFF at boot and after heartbeat expiry.
+    tests: [TC-008, TC-014]
+    priority: MUST
+  FR-007:
+    description: Fault injector can drop, delay, duplicate and corrupt frames.
+    tests: [TC-009, TC-010, TC-011]
+    priority: MUST
+  FR-008:
+    description: Campaign reproducible from seed and parameters.
+    tests: [TC-012]
+    priority: MUST
+  FR-009:
+    description: Runner verifies response, DUT state and expected timings.
+    tests: [TC-009, TC-010, TC-011, TC-013]
+    priority: MUST
+  FR-010:
+    description: Results exported as JUnit XML and JSON; synthetic HTML report.
+    tests: [TC-REP-001]
+    priority: MUST
+  FR-011:
+    description: Traceability requirement_id -> test_case_id -> result preserved.
+    tests: [TC-TRC-001]
+    priority: MUST
+  FR-012:
+    description: Serial transport allows connecting hardware DUT later.
+    tests: []
+    priority: SHOULD
+  FR-013:
+    description: Host mode exchanges frame envelopes over stdin/stdout; parser gets raw RTU bytes.
+    tests: [TC-IPC-001]
+    priority: MUST
+
+non_functional:
+  NFR-001: { description: Portable firmware core, hardware-independent., tests: [] }
+  NFR-002: { description: Bounded frames, 256 bytes, no out-of-bounds access., tests: [TC-003] }
+  NFR-003: { description: Deterministic fault injection., tests: [TC-012] }
+  NFR-004: { description: Readable, formatted, controlled C/C++ code., tests: [] }
+  NFR-005: { description: Tests runnable without hardware., tests: [] }
+  NFR-006: { description: Controlled, reproducible scenario timings., tests: [TC-008, TC-011] }
+  NFR-007: { description: CI checks build, tests, format, static analysis., tests: [] }
+  NFR-008: { description: Reports distinguish simulated vs hardware., tests: [] }
+
+test_cases:
+  TC-001: { requirement: FR-003, stimulus: Read existing register FC03, expected: correct response }
+  TC-002: { requirement: [FR-002, FR-005], stimulus: Invalid CRC on write request, expected: rejected, outputs unchanged }
+  TC-003: { requirement: [FR-002, FR-005], stimulus: Truncated / inconsistent length, expected: no partial processing, diagnostic }
+  TC-004: { requirement: FR-002, stimulus: Different slave address, expected: no application response, state unchanged }
+  TC-005: { requirement: FR-005, stimulus: Unsupported Modbus function, expected: illegal function exception }
+  TC-006: { requirement: [FR-004, FR-005], stimulus: Write to read-only register, expected: exception, state unchanged }
+  TC-007: { requirement: [FR-004, FR-005], stimulus: CONTROL_WORD with reserved bits, expected: rejected, outputs unchanged }
+  TC-008: { requirement: FR-006, stimulus: Heartbeat not refreshed for 1000 ms, expected: SAFE, outputs OFF }
+  TC-009: { requirement: [FR-007, FR-009], stimulus: Duplicate identical write, expected: idempotent }
+  TC-010: { requirement: [FR-007, FR-009], stimulus: Injected response loss, expected: runner timeout reported }
+  TC-011: { requirement: [FR-007, FR-009], stimulus: Response delay beyond timeout, expected: timeout failure, no hang }
+  TC-012: { requirement: FR-008, stimulus: Same campaign same seed, expected: same fault series }
+  TC-013: { requirement: [FR-002, FR-009], stimulus: Burst of valid/invalid requests, expected: no state corruption }
+  TC-014: { requirement: FR-006, stimulus: Software reset while outputs active, expected: OFF after init, reset status }

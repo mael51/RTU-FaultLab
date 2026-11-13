@@ -1,0 +1,22 @@
+campaign:
+  id: modbus_smoke
+  seed: 481516
+  target: virtual_dut
+  timeout_ms: 250
+  tests:
+    - id: TC-001
+      requirement: FR-003
+      action: read_holding_registers
+      address: 0x0001
+      count: 1
+      expect:
+        status: success
+    - id: TC-002
+      requirement: FR-002
+      action: write_single_register
+      address: 0x0000
+      value: 0x0001
+      inject:
+        corrupt_crc: true
+      expect:
+        dut_output_state: 0x0000
