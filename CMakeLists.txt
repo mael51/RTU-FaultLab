@@ -6,11 +6,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(RTU_ENABLE_SANITIZERS "Enable ASan/UBSan" OFF)
+option(RTU_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(RTU_ENABLE_COVERAGE "Enable code coverage (gcov)" OFF)
 
 if(RTU_ENABLE_SANITIZERS)
   add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
   add_link_options(-fsanitize=address,undefined)
+endif()
+
+if(RTU_ENABLE_TSAN)
+  add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=thread)
 endif()
 
 if(RTU_ENABLE_COVERAGE)
@@ -30,14 +36,14 @@ include(FetchContent)
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+  URL_HASH SHA256=1f357c27ca988c3f7c6b4bf68a9395005ac6761f034046e9dde0896e3aba00e4
 )
 # For Windows/MinGW, avoid overriding CRT
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# Core library (empty for now, grows phase by phase)
+# Core library: Modbus protocol, registers, safety logic (no OS dependency)
 add_library(rtufaultlab_core STATIC
-  firmware/core/core_placeholder.cpp
   firmware/core/modbus_crc.cpp
   firmware/core/modbus_parser.cpp
   firmware/core/modbus_handler.cpp
@@ -46,9 +52,8 @@ add_library(rtufaultlab_core STATIC
 )
 target_include_directories(rtufaultlab_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Host adapter library (empty for now)
+# Host adapter library: real clock, GPIO mock, transports
 add_library(rtufaultlab_host STATIC
-  firmware/host/host_placeholder.cpp
   firmware/host/clock_host.cpp
   firmware/host/gpio_mock.cpp
   firmware/host/transport_loopback.cpp
@@ -76,4 +81,4 @@ add_executable(rtufaultlab_dut_host
 target_link_libraries(rtufaultlab_dut_host PRIVATE rtufaultlab_core rtufaultlab_host)
 target_link_libraries(rtufaultlab_tests PRIVATE rtufaultlab_core rtufaultlab_host GTest::gtest_main)
 include(GoogleTest)
-gtest_discover_tests(rtufaultlab_tests)
+gtest_discover_tests(rtufaultlab_tests TIMEOUT 60)
