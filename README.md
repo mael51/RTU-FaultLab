@@ -20,10 +20,10 @@ Projet complet (phases 0–11). Firmware C++ portable, banc Python, injection de
 ## Build (hôte)
 
 ```bash
-# Windows (MSYS2/MinGW)
-$env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
-cmake -G "MSYS Makefiles" -S . -B build
-cmake --build build
+# Windows (MSYS2/UCRT64)
+# Terminal UCRT64
+cmake -G Ninja -S . -B build
+cmake --build build --parallel
 ```
 
 ```bash

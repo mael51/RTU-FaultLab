@@ -81,7 +81,9 @@ flowchart LR
 ## Couverture de code
 
 - Option CMake `RTU_ENABLE_COVERAGE` (gcov).
-- Job CI `coverage` sur Linux avec lcov.
+- Job CI `coverage` sur Linux (ubuntu-24.04) avec lcov.
+- Étapes séparées : capture, filtrage, affichage.
+- Diagnostic : versions toolchain, présence des .gcno/.gcda.
 - Vérifié localement : `modbus_crc.cpp` à 100%.
 
 ## Résultats des tests
