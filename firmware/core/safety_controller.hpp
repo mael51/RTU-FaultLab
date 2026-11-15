@@ -9,16 +9,28 @@
 
 namespace rtu {
 
+enum class SafetyState {
+    BOOT_SAFE,
+    READY,
+    RUNNING,
+    SAFE_TIMEOUT,
+    RECOVERY_PENDING,
+};
+
 class SafetyController {
 public:
     SafetyController(IClock& clock, IGpio& gpio, RegisterMap& regs,
                      uint32_t timeout_ms = cfg::HEARTBEAT_TIMEOUT_MS);
 
     void reset();          // SAFE state, set RESET_CAUSE
-    void heartbeat(uint16_t value); // refresh window
+    void heartbeat(uint16_t value); // refresh window / state transition
     void update();         // check timeout, apply SAFE if expired
+    void recover();        // explicit recovery from SAFE_TIMEOUT
 
-    bool isSafe() const { return safe_; }
+    bool isSafe() const { return state_ == SafetyState::BOOT_SAFE ||
+                                state_ == SafetyState::SAFE_TIMEOUT ||
+                                state_ == SafetyState::RECOVERY_PENDING; }
+    SafetyState state() const { return state_; }
 
 private:
     IClock& clock_;
@@ -26,8 +38,7 @@ private:
     RegisterMap& regs_;
     uint32_t timeout_ms_;
     uint32_t last_heartbeat_ms_;
-    bool safe_;
-    bool started_;
+    SafetyState state_;
 
     void applySafe();
     void applyOutputs(uint16_t cw);

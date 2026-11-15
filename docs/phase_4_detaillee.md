@@ -43,12 +43,13 @@ Permet de tester le timeout sans sleep réel. L'horloge est contrôlée par le t
 ---
 
 ```mermaid
-flowchart LR
-    C[IClock] --> S[SafetyController]
-    G[IGpio] --> S
-    R[RegisterMap] --> S
-    S -->|timeout| SAFE[SAFE: sorties OFF]
-    S -->|heartbeat| RUN[RUNNING]
+stateDiagram-v2
+    [*] --> BOOT_SAFE
+    BOOT_SAFE --> RUNNING: heartbeat()
+    RUNNING --> SAFE_TIMEOUT: timeout 1000ms
+    SAFE_TIMEOUT --> RECOVERY_PENDING: heartbeat()
+    RECOVERY_PENDING --> RUNNING: recover (CONTROL_WORD)
+    RUNNING --> SAFE_TIMEOUT: reset()
 ```
 
 ---

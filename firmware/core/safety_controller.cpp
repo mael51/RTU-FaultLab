@@ -6,13 +6,12 @@ SafetyController::SafetyController(IClock& clock, IGpio& gpio, RegisterMap& regs
                                  uint32_t timeout_ms)
     : clock_(clock), gpio_(gpio), regs_(regs),
       timeout_ms_(timeout_ms), last_heartbeat_ms_(0),
-      safe_(true), started_(false) {
+      state_(SafetyState::BOOT_SAFE) {
     reset();
 }
 
 void SafetyController::reset() {
-    safe_ = true;
-    started_ = false;
+    state_ = SafetyState::BOOT_SAFE;
     regs_.reset();
     regs_.setDeviceStatusBit(status::RESET_CAUSE, true);
     applySafe();
@@ -21,24 +20,50 @@ void SafetyController::reset() {
 
 void SafetyController::heartbeat(uint16_t value) {
     (void)value;
-    last_heartbeat_ms_ = clock_.nowMs();
-    safe_ = false;
-    started_ = true;
-    regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, false);
-    regs_.setDeviceStatusBit(status::READY, true);
-    // apply outputs from CONTROL_WORD
-    applyOutputs(regs_.read(reg::CONTROL_WORD));
+    uint32_t now = clock_.nowMs();
+
+    switch (state_) {
+        case SafetyState::BOOT_SAFE:
+            state_ = SafetyState::RUNNING;
+            regs_.setDeviceStatusBit(status::READY, true);
+            regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, false);
+            last_heartbeat_ms_ = now;
+            applyOutputs(regs_.read(reg::CONTROL_WORD));
+            break;
+        case SafetyState::RUNNING:
+            last_heartbeat_ms_ = now;
+            break;
+        case SafetyState::SAFE_TIMEOUT:
+            // Heartbeat alone does NOT reactivate outputs.
+            state_ = SafetyState::RECOVERY_PENDING;
+            regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, true);
+            last_heartbeat_ms_ = now;
+            break;
+        case SafetyState::RECOVERY_PENDING:
+            last_heartbeat_ms_ = now;
+            break;
+    }
 }
 
 void SafetyController::update() {
-    if (!started_) return; // before first heartbeat, stay safe
+    if (state_ != SafetyState::RUNNING) return;
     uint32_t now = clock_.nowMs();
     uint32_t elapsed = now - last_heartbeat_ms_;
     if (elapsed > timeout_ms_) {
         applySafe();
-        safe_ = true;
+        state_ = SafetyState::SAFE_TIMEOUT;
         regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, true);
         regs_.setDeviceStatusBit(status::READY, false);
+    }
+}
+
+void SafetyController::recover() {
+    if (state_ == SafetyState::RECOVERY_PENDING || state_ == SafetyState::SAFE_TIMEOUT) {
+        state_ = SafetyState::RUNNING;
+        regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, false);
+        regs_.setDeviceStatusBit(status::READY, true);
+        applyOutputs(regs_.read(reg::CONTROL_WORD));
+        last_heartbeat_ms_ = clock_.nowMs();
     }
 }
 
@@ -46,7 +71,6 @@ void SafetyController::applySafe() {
     gpio_.setOutput(0, false);
     gpio_.setOutput(1, false);
     regs_.setOutputState(0);
-    safe_ = true;
 }
 
 void SafetyController::applyOutputs(uint16_t cw) {

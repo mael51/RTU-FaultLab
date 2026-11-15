@@ -5,11 +5,12 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SAFE
-    SAFE --> RUNNING: heartbeat()
-    RUNNING --> SAFE: timeout 1000ms
-    RUNNING --> SAFE: reset()
-    SAFE --> SAFE: reset()
+    [*] --> BOOT_SAFE
+    BOOT_SAFE --> RUNNING: heartbeat()
+    RUNNING --> SAFE_TIMEOUT: timeout 1000ms
+    SAFE_TIMEOUT --> RECOVERY_PENDING: heartbeat()
+    RECOVERY_PENDING --> RUNNING: recover (CONTROL_WORD)
+    RUNNING --> SAFE_TIMEOUT: reset()
 ```
 
 ---

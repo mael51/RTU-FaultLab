@@ -47,6 +47,31 @@ TEST(SafetyPhase4, Reset) {
     EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0);
 }
 
+TEST(SafetyPhase4, NoAutomaticReactivation) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap rm;
+    SafetyController sc(clk, gpio, rm, 1000);
+    rm.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1);
+    EXPECT_FALSE(sc.isSafe());
+    EXPECT_TRUE(gpio.getOutput(0));
+    // timeout
+    clk.advance(1500);
+    sc.update();
+    EXPECT_TRUE(sc.isSafe());
+    EXPECT_FALSE(gpio.getOutput(0));
+    // heartbeat alone does NOT reactivate
+    sc.heartbeat(2);
+    EXPECT_TRUE(sc.isSafe());
+    EXPECT_FALSE(gpio.getOutput(0));
+    // explicit recover via control word
+    rm.write(reg::CONTROL_WORD, 0x0003);
+    sc.recover();
+    EXPECT_FALSE(sc.isSafe());
+    EXPECT_TRUE(gpio.getOutput(0));
+}
+
 TEST(SafetyPhase4, HeartbeatKeepsSafeOff) {
     ClockHost clk(0);
     GpioMock gpio;

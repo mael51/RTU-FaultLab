@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <condition_variable>
 #include <mutex>
 #include <queue>
 #include <sstream>
@@ -62,6 +63,7 @@ int main() {
     // Thread to read stdin lines
     std::queue<std::string> lineQueue;
     std::mutex qmtx;
+    std::condition_variable qcv;
     std::atomic<bool> running{true};
 
     std::thread reader([&]() {
@@ -69,24 +71,35 @@ int main() {
         while (running) {
             if (!std::getline(std::cin, line)) {
                 running = false;
+                qcv.notify_all();
                 break;
             }
-            std::lock_guard<std::mutex> lk(qmtx);
-            lineQueue.push(line);
+            {
+                std::lock_guard<std::mutex> lk(qmtx);
+                lineQueue.push(line);
+            }
+            qcv.notify_one();
         }
         running = false;
+        qcv.notify_all();
     });
 
     // Main loop: process incoming frames + periodic safety update
     auto lastSafety = std::chrono::steady_clock::now();
-    while (running || !lineQueue.empty()) {
+    while (running || true) {
         std::string line;
         {
-            std::lock_guard<std::mutex> lk(qmtx);
+            std::unique_lock<std::mutex> lk(qmtx);
+            qcv.wait_for(lk, std::chrono::milliseconds(10), [&]() {
+                return !lineQueue.empty() || !running;
+            });
             if (!lineQueue.empty()) {
                 line = lineQueue.front();
                 lineQueue.pop();
             }
+        }
+        if (line.empty() && !running && lineQueue.empty()) {
+            break;
         }
 
         if (!line.empty()) {
@@ -106,6 +119,10 @@ int main() {
                             if (req.address == reg::HEARTBEAT) {
                                 safety.heartbeat(req.value);
                             } else if (req.address == reg::CONTROL_WORD && !isException) {
+                                if (safety.state() == SafetyState::RECOVERY_PENDING ||
+                                    safety.state() == SafetyState::SAFE_TIMEOUT) {
+                                    safety.recover();
+                                }
                                 safety.heartbeat(0); // refresh window on valid command
                             }
                         }
