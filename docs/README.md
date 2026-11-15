@@ -14,7 +14,12 @@ Plan en phases (comme EmbeddedSense). Chaque phase a un fichier synthèse (`phas
 | 7 | Runner Python et campagnes YAML | M3 | ✅ |
 | 8 | Rapports et traçabilité | M4 | ✅ |
 | 9 | Qualité, sanitizers, CI | M4 | ✅ |
-| 10 | Portage STM32 / FreeRTOS | M5 | ✅ |
+| 10 | Portage STM32 / FreeRTOS | M5 | ⚠️ architecture préparée — portage matériel en attente |
 | 11 | Finalisation et démonstration | — | ✅ |
 
 Règle d'or : ne passer à la phase suivante sans valider la checklist de la phase en cours.
+
+> **Nuance importante :** ✅ signifie « implémenté et testé en simulation (SIL) ». Le portage
+> STM32 (phase 10) n'est **pas** validé matériellement : les adaptateurs existent en stubs
+> (`firmware/stm32/`) et un guide est disponible (`docs/hardware_guide.md`), mais aucun essai
+> sur carte n'a été réalisé.
