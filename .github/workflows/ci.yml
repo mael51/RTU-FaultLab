@@ -35,7 +35,7 @@ jobs:
           ./rtufaultlab_tests.exe
       - name: Format check
         run: |
-          find firmware tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror
+          find firmware tests \\( -name '*.hpp' -o -name '*.cpp' \\) -print0 | xargs -0 -r clang-format --dry-run --Werror
       - name: Static analysis (cppcheck)
         run: |
           set -o pipefail
@@ -51,7 +51,7 @@ jobs:
           python bench/runner/cli.py bench/campaigns/smoke.yaml --dut build/rtufaultlab_dut_host.exe --reports bench/reports
 
   sanitizers:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Configure

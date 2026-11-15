@@ -24,6 +24,10 @@ Projet complet (phases 0–11). Firmware C++ portable, banc Python, injection de
 # Terminal UCRT64
 cmake -G Ninja -S . -B build
 cmake --build build --parallel
+
+# Tests
+cd build
+./rtufaultlab_tests.exe
 ```
 
 ```bash
