@@ -16,6 +16,32 @@ TEST(SafetyPhase4, BootSafe) {
     EXPECT_FALSE(gpio.getOutput(0));
     EXPECT_FALSE(gpio.getOutput(1));
     EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0);
+    EXPECT_EQ(sc.state(), SafetyState::BOOT_SAFE);
+}
+
+TEST(SafetyPhase4, HeartbeatReady) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    sc.heartbeat(1);
+    EXPECT_TRUE(sc.isSafe()); // READY is safe
+    EXPECT_EQ(sc.state(), SafetyState::READY);
+    EXPECT_FALSE(gpio.getOutput(0));
+}
+
+TEST(SafetyPhase4, ActivateRunning) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1); // BOOT_SAFE -> READY
+    sc.activate();     // READY -> RUNNING
+    EXPECT_FALSE(sc.isSafe());
+    EXPECT_TRUE(gpio.getOutput(0));
+    EXPECT_TRUE(gpio.getOutput(1));
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0003);
 }
 
 TEST(SafetyPhase4, HeartbeatTimeout) {
@@ -23,40 +49,28 @@ TEST(SafetyPhase4, HeartbeatTimeout) {
     GpioMock gpio;
     RegisterMap regs;
     SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
     sc.heartbeat(1);
+    sc.activate();
     EXPECT_FALSE(sc.isSafe());
-    // advance beyond timeout
     clk.advance(1500);
     sc.update();
     EXPECT_TRUE(sc.isSafe());
+    EXPECT_EQ(sc.state(), SafetyState::SAFE_TIMEOUT);
     EXPECT_FALSE(gpio.getOutput(0));
     EXPECT_FALSE(gpio.getOutput(1));
-    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0);
-    EXPECT_EQ(regs.read(reg::DEVICE_STATUS) & status::SAFE_TIMEOUT, status::SAFE_TIMEOUT);
-}
-
-TEST(SafetyPhase4, Reset) {
-    ClockHost clk(0);
-    GpioMock gpio;
-    RegisterMap regs;
-    SafetyController sc(clk, gpio, regs, 1000);
-    sc.heartbeat(1);
-    sc.reset();
-    EXPECT_TRUE(sc.isSafe());
-    EXPECT_EQ(regs.read(reg::DEVICE_STATUS) & status::RESET_CAUSE, status::RESET_CAUSE);
     EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0);
 }
 
 TEST(SafetyPhase4, NoAutomaticReactivation) {
     ClockHost clk(0);
     GpioMock gpio;
-    RegisterMap rm;
-    SafetyController sc(clk, gpio, rm, 1000);
-    rm.write(reg::CONTROL_WORD, 0x0003);
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
     sc.heartbeat(1);
+    sc.activate();
     EXPECT_FALSE(sc.isSafe());
-    EXPECT_TRUE(gpio.getOutput(0));
-    // timeout
     clk.advance(1500);
     sc.update();
     EXPECT_TRUE(sc.isSafe());
@@ -64,26 +78,42 @@ TEST(SafetyPhase4, NoAutomaticReactivation) {
     // heartbeat alone does NOT reactivate
     sc.heartbeat(2);
     EXPECT_TRUE(sc.isSafe());
+    EXPECT_EQ(sc.state(), SafetyState::RECOVERY_PENDING);
     EXPECT_FALSE(gpio.getOutput(0));
     // explicit recover via control word
-    rm.write(reg::CONTROL_WORD, 0x0003);
+    regs.write(reg::CONTROL_WORD, 0x0003);
     sc.recover();
     EXPECT_FALSE(sc.isSafe());
+    EXPECT_EQ(sc.state(), SafetyState::RUNNING);
     EXPECT_TRUE(gpio.getOutput(0));
+}
+
+TEST(SafetyPhase4, Reset) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    sc.reset();
+    EXPECT_TRUE(sc.isSafe());
+    EXPECT_EQ(sc.state(), SafetyState::BOOT_SAFE);
+    EXPECT_EQ(regs.read(reg::DEVICE_STATUS) & status::RESET_CAUSE, status::RESET_CAUSE);
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0);
 }
 
 TEST(SafetyPhase4, HeartbeatKeepsSafeOff) {
     ClockHost clk(0);
     GpioMock gpio;
-    RegisterMap rm;
-    SafetyController sc(clk, gpio, rm, 1000);
-    // set outputs via control word before heartbeat
-    rm.write(reg::CONTROL_WORD, 0x0003);
-    sc.heartbeat(1);
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1); // BOOT_SAFE -> READY, outputs stay OFF
+    EXPECT_TRUE(sc.isSafe());
+    EXPECT_FALSE(gpio.getOutput(0));
+    EXPECT_FALSE(gpio.getOutput(1));
+    sc.activate(); // READY -> RUNNING, outputs ON
     EXPECT_FALSE(sc.isSafe());
     EXPECT_TRUE(gpio.getOutput(0));
     EXPECT_TRUE(gpio.getOutput(1));
-    // within timeout, no safe
     clk.advance(500);
     sc.update();
     EXPECT_FALSE(sc.isSafe());

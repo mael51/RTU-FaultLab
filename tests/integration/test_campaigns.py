@@ -84,17 +84,17 @@ def test_safety_timeout_integration():
         proc.stdin.write(f"REQ {frame_hex}\n")
         proc.stdin.flush()
 
-    # enable output 1
+    # enable output 1 (activates outputs)
     d = [0x01, 0x06, 0x00, 0x00, 0x00, 0x01]
     c = _crc(d)
     send("01 06 00 00 00 01 {:02X} {:02X}".format(c & 0xFF, (c >> 8) & 0xFF))
     time.sleep(0.2)
-    # heartbeat
+    # heartbeat (transitions READY -> RUNNING)
     d2 = [0x01, 0x06, 0x00, 0x05, 0x00, 0x01]
     c2 = _crc(d2)
     send("01 06 00 05 00 01 {:02X} {:02X}".format(c2 & 0xFF, (c2 >> 8) & 0xFF))
     time.sleep(1.5)
-    # read output state
+    # read output state (should be 0 after timeout)
     d3 = [0x01, 0x03, 0x00, 0x01, 0x00, 0x01]
     c3 = _crc(d3)
     send("01 03 00 01 00 01 {:02X} {:02X}".format(c3 & 0xFF, (c3 >> 8) & 0xFF))
@@ -103,6 +103,7 @@ def test_safety_timeout_integration():
     t.join(timeout=2)
     proc.terminate()
     # find the last RESP for output state
+    pass
     pass
     resp = None
     for l in reversed(lines):

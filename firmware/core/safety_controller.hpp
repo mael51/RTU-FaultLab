@@ -26,8 +26,11 @@ public:
     void heartbeat(uint16_t value); // refresh window / state transition
     void update();         // check timeout, apply SAFE if expired
     void recover();        // explicit recovery from SAFE_TIMEOUT
+    void activate();       // transition READY -> RUNNING and apply CONTROL_WORD
+    void applyControlWord(uint16_t cw); // apply outputs from a validated CONTROL_WORD write (RUNNING only)
 
     bool isSafe() const { return state_ == SafetyState::BOOT_SAFE ||
+                                state_ == SafetyState::READY ||
                                 state_ == SafetyState::SAFE_TIMEOUT ||
                                 state_ == SafetyState::RECOVERY_PENDING; }
     SafetyState state() const { return state_; }

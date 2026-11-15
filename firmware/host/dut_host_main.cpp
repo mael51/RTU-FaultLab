@@ -119,9 +119,17 @@ int main() {
                             if (req.address == reg::HEARTBEAT) {
                                 safety.heartbeat(req.value);
                             } else if (req.address == reg::CONTROL_WORD && !isException) {
-                                if (safety.state() == SafetyState::RECOVERY_PENDING ||
-                                    safety.state() == SafetyState::SAFE_TIMEOUT) {
+                                if (safety.state() == SafetyState::BOOT_SAFE) {
+                                    safety.heartbeat(0); // BOOT_SAFE -> READY
+                                }
+                                regs.write(reg::CONTROL_WORD, req.value);
+                                if (safety.state() == SafetyState::READY) {
+                                    safety.activate();
+                                } else if (safety.state() == SafetyState::RECOVERY_PENDING ||
+                                           safety.state() == SafetyState::SAFE_TIMEOUT) {
                                     safety.recover();
+                                } else if (safety.state() == SafetyState::RUNNING) {
+                                    safety.applyControlWord(req.value);
                                 }
                                 safety.heartbeat(0); // refresh window on valid command
                             }

@@ -24,11 +24,13 @@ void SafetyController::heartbeat(uint16_t value) {
 
     switch (state_) {
         case SafetyState::BOOT_SAFE:
-            state_ = SafetyState::RUNNING;
+            state_ = SafetyState::READY;
             regs_.setDeviceStatusBit(status::READY, true);
             regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, false);
             last_heartbeat_ms_ = now;
-            applyOutputs(regs_.read(reg::CONTROL_WORD));
+            break;
+        case SafetyState::READY:
+            last_heartbeat_ms_ = now;
             break;
         case SafetyState::RUNNING:
             last_heartbeat_ms_ = now;
@@ -58,9 +60,18 @@ void SafetyController::update() {
 }
 
 void SafetyController::recover() {
-    if (state_ == SafetyState::RECOVERY_PENDING || state_ == SafetyState::SAFE_TIMEOUT) {
+    if (state_ == SafetyState::RECOVERY_PENDING) {
         state_ = SafetyState::RUNNING;
         regs_.setDeviceStatusBit(status::SAFE_TIMEOUT, false);
+        regs_.setDeviceStatusBit(status::READY, true);
+        applyOutputs(regs_.read(reg::CONTROL_WORD));
+        last_heartbeat_ms_ = clock_.nowMs();
+    }
+}
+
+void SafetyController::activate() {
+    if (state_ == SafetyState::READY) {
+        state_ = SafetyState::RUNNING;
         regs_.setDeviceStatusBit(status::READY, true);
         applyOutputs(regs_.read(reg::CONTROL_WORD));
         last_heartbeat_ms_ = clock_.nowMs();
@@ -77,6 +88,12 @@ void SafetyController::applyOutputs(uint16_t cw) {
     gpio_.setOutput(0, (cw & cw::OUTPUT1) != 0);
     gpio_.setOutput(1, (cw & cw::OUTPUT2) != 0);
     regs_.setOutputState(cw & 0x0003);
+}
+
+void SafetyController::applyControlWord(uint16_t cw) {
+    if (state_ == SafetyState::RUNNING) {
+        applyOutputs(cw);
+    }
 }
 
 } // namespace rtu
