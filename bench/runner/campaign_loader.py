@@ -13,6 +13,7 @@ class TestCase:
     address: int
     count: int = 1
     value: int = 0
+    function: int = None  # optional Modbus function override (e.g. 0x05)
     inject: Dict[str, Any] = field(default_factory=dict)
     expect: Dict[str, Any] = field(default_factory=dict)
 
@@ -50,6 +51,7 @@ def load_campaign(path: str) -> Campaign:
             address=t.get("address", 0),
             count=t.get("count", 1),
             value=t.get("value", 0),
+            function=t.get("function"),
             inject=t.get("inject", {}) or {},
             expect=t.get("expect", {}) or {},
         ))

@@ -11,6 +11,7 @@ campaign:
       count: 1
       expect:
         status: success
+        dut_output_state: 0x0000
     - id: TC-002
       requirement: FR-002
       action: write_single_register
@@ -21,3 +22,46 @@ campaign:
       expect:
         status: timeout
         dut_output_state: 0x0000
+    - id: TC-003
+      requirement: FR-002
+      action: read_holding_registers
+      address: 0x0001
+      count: 1
+      inject:
+        truncate: true
+      expect:
+        status: timeout
+        dut_output_state: 0x0000
+    - id: TC-015
+      requirement: [FR-003, FR-004]
+      action: write_single_register
+      address: 0x0000
+      value: 0x0001
+      expect:
+        status: success
+        echo_value: 1
+        dut_output_state: 0x0001
+    - id: TC-016
+      requirement: FR-003
+      action: read_holding_registers
+      address: 0x0001
+      count: 1
+      expect:
+        status: success
+        register_values: [1]
+        dut_output_state: 0x0001
+    - id: TC-017
+      requirement: [FR-003, FR-004]
+      action: write_single_register
+      address: 0x0000
+      value: 0x0000
+      expect:
+        status: success
+        dut_output_state: 0x0000
+    - id: TC-018
+      requirement: FR-003
+      action: read_holding_registers
+      address: 0x0000
+      count: 6
+      expect:
+        status: success

@@ -55,6 +55,13 @@ int handleModbusRequest(const ModbusRequest& req, RegisterMap& regs, uint8_t* re
             putCrc(response, 3);
             return 5;
         }
+        if (!regs.writable(req.address)) {
+            response[0] = req.slave;
+            response[1] = fc::WRITE_SINGLE_REGISTER | 0x80;
+            response[2] = exc::ILLEGAL_DATA_ADDRESS;
+            putCrc(response, 3);
+            return 5;
+        }
         if (!regs.write(req.address, req.value)) {
             response[0] = req.slave;
             response[1] = fc::WRITE_SINGLE_REGISTER | 0x80;

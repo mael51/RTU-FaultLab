@@ -29,8 +29,13 @@ def crc16(data: bytes) -> int:
     return crc
 
 
-def build_frame(slave: int, action: str, address: int, value: int = 0, count: int = 1) -> str:
-    if action == "read_holding_registers":
+def build_frame(slave: int, action: str, address: int, value: int = 0, count: int = 1,
+                function: int = None) -> str:
+    if function is not None:
+        # raw function override (e.g. unsupported function tests)
+        payload = bytes([slave, function & 0xFF, (address >> 8) & 0xFF, address & 0xFF,
+                         (value >> 8) & 0xFF, value & 0xFF])
+    elif action == "read_holding_registers":
         payload = bytes([slave, 0x03, (address >> 8) & 0xFF, address & 0xFF,
                         (count >> 8) & 0xFF, count & 0xFF])
     elif action == "write_single_register":
@@ -60,7 +65,8 @@ def main():
     results = []
     all_pass = True
     for tc in camp.tests:
-        frame = build_frame(1, tc.action, tc.address, tc.value, tc.count)
+        frame = build_frame(1, tc.action, tc.address, tc.value, tc.count,
+                            function=tc.function)
 
         # fault injection
         inj = {}

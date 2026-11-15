@@ -14,7 +14,7 @@ def test_campaign_loads():
     from campaign_loader import load_campaign
     c = load_campaign(os.path.join(ROOT, "bench", "campaigns", "smoke.yaml"))
     assert c.id == "modbus_smoke"
-    assert len(c.tests) == 2
+    assert len(c.tests) == 7
 
 
 def test_smoke_campaign_runs():
@@ -61,7 +61,10 @@ def test_safety_timeout_integration():
         import pytest
         pytest.skip("DUT not built")
     env = os.environ.copy()
-    env["PATH"] = r"C:\msys64\mingw64\bin;" + env.get("PATH", "")
+    # Make MinGW DLLs reachable if the DUT was built with MSYS2 (ucrt64 or mingw64)
+    for dll_dir in (r"C:\msys64\ucrt64\bin", r"C:\msys64\mingw64\bin"):
+        if os.path.isdir(dll_dir):
+            env["PATH"] = dll_dir + os.pathsep + env.get("PATH", "")
     proc = subprocess.Popen(
         [DUT],
         stdin=subprocess.PIPE,

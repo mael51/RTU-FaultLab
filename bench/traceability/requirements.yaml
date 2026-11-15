@@ -12,15 +12,15 @@ requirements:
     priority: MUST
   FR-003:
     description: FC03 supported on documented registers.
-    tests: [TC-001]
+    tests: [TC-001, TC-016, TC-018]
     priority: MUST
   FR-004:
     description: FC06 only on modifiable registers and allowed values.
-    tests: [TC-006, TC-007]
+    tests: [TC-006, TC-007, TC-015, TC-017, TC-021]
     priority: MUST
   FR-005:
     description: Illegal functions/addresses/values produce exception and leave state unchanged.
-    tests: [TC-002, TC-003, TC-005, TC-006, TC-007]
+    tests: [TC-002, TC-003, TC-005, TC-006, TC-007, TC-019, TC-020, TC-021]
     priority: MUST
   FR-006:
     description: Outputs forced OFF at boot and after heartbeat expiry.
@@ -84,3 +84,10 @@ test_cases:
   TC-012: { requirement: FR-008, stimulus: Same campaign same seed, expected: same fault series }
   TC-013: { requirement: [FR-002, FR-009], stimulus: Burst of valid/invalid requests, expected: no state corruption }
   TC-014: { requirement: FR-006, stimulus: Software reset while outputs active, expected: OFF after init, reset status }
+  TC-015: { requirement: [FR-003, FR-004], stimulus: Write CONTROL_WORD to activate, expected: echo + outputs applied, level: campaign }
+  TC-016: { requirement: FR-003, stimulus: Read OUTPUT_STATE after write, expected: register matches applied outputs, level: campaign }
+  TC-017: { requirement: [FR-003, FR-004], stimulus: Write CONTROL_WORD to disable outputs, expected: outputs OFF, level: campaign }
+  TC-018: { requirement: FR-003, stimulus: Read all 6 registers FC03, expected: success, level: campaign }
+  TC-019: { requirement: FR-005, stimulus: FC03 quantity 0, expected: illegal data address exception, level: campaign }
+  TC-020: { requirement: FR-005, stimulus: FC03 address beyond register map, expected: illegal data address exception, level: campaign }
+  TC-021: { requirement: FR-005, stimulus: FC06 address beyond register map, expected: illegal data address exception, level: campaign }

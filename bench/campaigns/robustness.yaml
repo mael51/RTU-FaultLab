@@ -4,6 +4,23 @@ campaign:
   target: virtual_dut
   timeout_ms: 250
   tests:
+    - id: TC-005
+      requirement: FR-005
+      action: read_holding_registers
+      function: 0x05
+      address: 0x0000
+      count: 1
+      expect:
+        exception: 1
+        dut_output_state: 0x0000
+    - id: TC-006
+      requirement: FR-004
+      action: write_single_register
+      address: 0x0001
+      value: 0x0001
+      expect:
+        exception: 2
+        dut_output_state: 0x0000
     - id: TC-007
       requirement: FR-004
       action: write_single_register
@@ -12,10 +29,26 @@ campaign:
       expect:
         exception: 3
         dut_output_state: 0x0000
-    - id: TC-006
-      requirement: FR-004
+    - id: TC-019
+      requirement: FR-005
+      action: read_holding_registers
+      address: 0x0000
+      count: 0
+      expect:
+        exception: 2
+        dut_output_state: 0x0000
+    - id: TC-020
+      requirement: FR-005
+      action: read_holding_registers
+      address: 0x0010
+      count: 1
+      expect:
+        exception: 2
+        dut_output_state: 0x0000
+    - id: TC-021
+      requirement: FR-005
       action: write_single_register
-      address: 0x0001
+      address: 0x0006
       value: 0x0001
       expect:
         exception: 2

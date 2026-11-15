@@ -2,10 +2,6 @@
 
 namespace {
 
-bool isWritableAddr(uint16_t addr) {
-    return addr == rtu::reg::CONTROL_WORD || addr == rtu::reg::HEARTBEAT;
-}
-
 }  // namespace
 
 namespace rtu {
@@ -27,7 +23,7 @@ bool RegisterMap::write(uint16_t addr, uint16_t value) {
         setLastError(diag::BAD_ADDRESS);
         return false;
     }
-    if (!isWritableAddr(addr)) {
+    if (!RegisterMap::writable(addr)) {
         setLastError(diag::ILLEGAL_VALUE);
         return false;
     }

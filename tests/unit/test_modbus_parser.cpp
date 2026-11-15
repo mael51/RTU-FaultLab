@@ -222,6 +222,7 @@ TEST(ModbusHandler, FC06WriteRORejected) {
     int n = handleModbusRequest(req, regs, resp, 256);
     EXPECT_EQ(n, 5);  // exception
     EXPECT_EQ(resp[1], fc::WRITE_SINGLE_REGISTER | 0x80);
+    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_ADDRESS);
     EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0000);  // unchanged
 }
 

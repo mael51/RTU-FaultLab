@@ -12,6 +12,11 @@ class RegisterMap {
    public:
     RegisterMap();
 
+    // True if the address may be written via FC06.
+    static bool writable(uint16_t addr) {
+        return addr == reg::CONTROL_WORD || addr == reg::HEARTBEAT;
+    }
+
     // Read a register by address (returns 0 if out of range).
     uint16_t read(uint16_t addr) const;
 
