@@ -100,6 +100,40 @@ TEST(SafetyPhase4, Reset) {
     EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0);
 }
 
+TEST(SafetyPhase4, ControlWordUpdateWhileRunning) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1); // BOOT_SAFE -> READY
+    sc.activate();   // READY -> RUNNING, outputs ON
+    EXPECT_TRUE(gpio.getOutput(0));
+    EXPECT_TRUE(gpio.getOutput(1));
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0003);
+    // update control word while RUNNING
+    regs.write(reg::CONTROL_WORD, 0x0001);
+    sc.applyControlWord(0x0001);
+    EXPECT_TRUE(gpio.getOutput(0));
+    EXPECT_FALSE(gpio.getOutput(1));
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0001);
+}
+
+TEST(SafetyPhase4, InvalidControlWordDoesNotApplyOutputs) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    // reserved bits rejected by RegisterMap: write fails, nothing applied
+    EXPECT_FALSE(regs.write(reg::CONTROL_WORD, 0x0004));
+    EXPECT_EQ(regs.read(reg::CONTROL_WORD), 0x0000);
+    sc.applyControlWord(0x0004);
+    EXPECT_EQ(sc.state(), SafetyState::BOOT_SAFE);
+    EXPECT_FALSE(gpio.getOutput(0));
+    EXPECT_FALSE(gpio.getOutput(1));
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0000);
+}
+
 TEST(SafetyPhase4, HeartbeatKeepsSafeOff) {
     ClockHost clk(0);
     GpioMock gpio;

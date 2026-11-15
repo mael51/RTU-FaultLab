@@ -16,7 +16,9 @@ TEST(RegisterMapPhase3, WriteControlWord) {
     RegisterMap rm;
     EXPECT_TRUE(rm.write(reg::CONTROL_WORD, 0x0003));
     EXPECT_EQ(rm.read(reg::CONTROL_WORD), 0x0003);
-    EXPECT_EQ(rm.read(reg::OUTPUT_STATE), 0x0003);
+    // OUTPUT_STATE is NOT applied here: output application is centralized in
+    // SafetyController (STAB-C03). The register only stores the command.
+    EXPECT_EQ(rm.read(reg::OUTPUT_STATE), 0x0000);
     EXPECT_EQ(rm.read(reg::LAST_ERROR), diag::NONE);
 }
 

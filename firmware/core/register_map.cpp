@@ -40,9 +40,8 @@ bool RegisterMap::write(uint16_t addr, uint16_t value) {
 
     regs_[addr - reg::FIRST] = value;
 
-    if (addr == reg::CONTROL_WORD) {
-        setOutputState(value & 0x0003);
-    }
+    // NOTE: output application (OUTPUT_STATE + GPIO) is centralized in
+    // SafetyController (applyControlWord / activate / recover), per STAB-C03.
     setLastError(diag::NONE);
     return true;
 }
