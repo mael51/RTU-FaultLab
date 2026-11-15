@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 namespace rtu {
 
@@ -80,6 +81,8 @@ constexpr uint8_t  STOP_BITS        = 1;
 constexpr uint32_t HEARTBEAT_TIMEOUT_MS = 1000;
 constexpr uint16_t MAX_FRAME_BYTES  = 256;
 constexpr uint8_t  SLAVE_ADDRESS    = 0x01;
+// DUT host receive queue bound (STAB-D03): overflow drops + diagnostic
+constexpr std::size_t MAX_QUEUE_LINES = 256;
 } // namespace cfg
 
 } // namespace rtu

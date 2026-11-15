@@ -6,7 +6,6 @@
 #include "firmware/host/clock_host.hpp"
 #include "firmware/host/gpio_mock.hpp"
 
-#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -60,45 +59,60 @@ int main() {
     GpioMock gpio;
     SafetyController safety(clk, gpio, regs, cfg::HEARTBEAT_TIMEOUT_MS);
 
-    // Thread to read stdin lines
+    // Thread to read stdin lines (STAB-D01: all queue access under qmtx)
     std::queue<std::string> lineQueue;
     std::mutex qmtx;
     std::condition_variable qcv;
-    std::atomic<bool> running{true};
+    bool eof = false;           // guarded by qmtx (STAB-D01/D02)
+    std::size_t droppedFrames = 0; // guarded by qmtx (STAB-D03)
 
     std::thread reader([&]() {
         std::string line;
-        while (running) {
+        while (true) {
             if (!std::getline(std::cin, line)) {
-                running = false;
+                std::lock_guard<std::mutex> lk(qmtx);
+                eof = true;
                 qcv.notify_all();
                 break;
             }
             {
                 std::lock_guard<std::mutex> lk(qmtx);
-                lineQueue.push(line);
+                if (lineQueue.size() >= cfg::MAX_QUEUE_LINES) {
+                    ++droppedFrames; // overflow policy: reject, never block
+                } else {
+                    lineQueue.push(line);
+                }
             }
             qcv.notify_one();
         }
-        running = false;
-        qcv.notify_all();
     });
 
-    // Main loop: process incoming frames + periodic safety update
+    // Main loop: process incoming frames + periodic safety update.
+    // Exits when stdin reached EOF and the queue is drained (STAB-D02).
     auto lastSafety = std::chrono::steady_clock::now();
-    while (running || true) {
+    bool sawEof = false;
+    while (true) {
         std::string line;
+        bool eofNow = false;
         {
             std::unique_lock<std::mutex> lk(qmtx);
             qcv.wait_for(lk, std::chrono::milliseconds(10), [&]() {
-                return !lineQueue.empty() || !running;
+                return !lineQueue.empty() || eof;
             });
             if (!lineQueue.empty()) {
                 line = lineQueue.front();
                 lineQueue.pop();
+            } else if (eof) {
+                eofNow = true;
+            }
+            if (droppedFrames > 0) {
+                std::size_t n = droppedFrames;
+                droppedFrames = 0;
+                fprintf(stderr, "queue overflow: %zu frames dropped\n", n);
             }
         }
-        if (line.empty() && !running && lineQueue.empty()) {
+        if (eofNow) {
+            sawEof = true;
             break;
         }
 
@@ -153,7 +167,6 @@ int main() {
             } else {
                 fprintf(stderr, "ignored line: %s\n", line.c_str());
             }
-            line.clear();
         }
 
         // Periodic safety update (~10ms)
@@ -167,5 +180,5 @@ int main() {
     }
 
     if (reader.joinable()) reader.join();
-    return 0;
+    return sawEof ? 0 : 1;
 }
