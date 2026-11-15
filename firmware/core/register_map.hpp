@@ -19,11 +19,6 @@ public:
     // On failure, sets last error and returns false.
     bool write(uint16_t addr, uint16_t value);
 
-    // Raw access for the Modbus handler (bounded).
-    uint16_t* raw();
-    const uint16_t* raw() const;
-    static constexpr std::size_t SIZE = reg::COUNT;
-
     // State helpers
     void setOutputState(uint16_t value);
     void setDeviceStatusBit(uint16_t bit, bool on);

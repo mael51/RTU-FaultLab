@@ -47,9 +47,6 @@ bool RegisterMap::write(uint16_t addr, uint16_t value) {
     return true;
 }
 
-uint16_t* RegisterMap::raw() { return regs_.data(); }
-const uint16_t* RegisterMap::raw() const { return regs_.data(); }
-
 void RegisterMap::setOutputState(uint16_t value) {
     regs_[reg::OUTPUT_STATE - reg::FIRST] = value & 0x0003;
 }
