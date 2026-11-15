@@ -3,9 +3,12 @@
 namespace rtu {
 
 SafetyController::SafetyController(IClock& clock, IGpio& gpio, RegisterMap& regs,
-                                 uint32_t timeout_ms)
-    : clock_(clock), gpio_(gpio), regs_(regs),
-      timeout_ms_(timeout_ms), last_heartbeat_ms_(0),
+                                   uint32_t timeout_ms)
+    : clock_(clock),
+      gpio_(gpio),
+      regs_(regs),
+      timeout_ms_(timeout_ms),
+      last_heartbeat_ms_(0),
       state_(SafetyState::BOOT_SAFE) {
     reset();
 }
@@ -96,4 +99,4 @@ void SafetyController::applyControlWord(uint16_t cw) {
     }
 }
 
-} // namespace rtu
+}  // namespace rtu

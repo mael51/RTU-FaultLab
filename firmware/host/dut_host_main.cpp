@@ -1,17 +1,9 @@
-#include "firmware/core/modbus_parser.hpp"
-#include "firmware/core/modbus_handler.hpp"
-#include "firmware/core/register_map.hpp"
-#include "firmware/core/safety_controller.hpp"
-#include "firmware/core/registers.hpp"
-#include "firmware/host/clock_host.hpp"
-#include "firmware/host/gpio_mock.hpp"
-
 #include <chrono>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <condition_variable>
 #include <mutex>
 #include <queue>
 #include <sstream>
@@ -19,12 +11,21 @@
 #include <thread>
 #include <vector>
 
+#include "firmware/core/modbus_handler.hpp"
+#include "firmware/core/modbus_parser.hpp"
+#include "firmware/core/register_map.hpp"
+#include "firmware/core/registers.hpp"
+#include "firmware/core/safety_controller.hpp"
+#include "firmware/host/clock_host.hpp"
+#include "firmware/host/gpio_mock.hpp"
+
 using namespace rtu;
 
 static std::vector<uint8_t> hexDecode(const std::string& s) {
     std::vector<uint8_t> out;
     std::string t;
-    for (char c : s) if (c != ' ') t.push_back(c);
+    for (char c : s)
+        if (c != ' ') t.push_back(c);
     if (t.size() % 2 != 0) return out;
     for (std::size_t i = 0; i < t.size(); i += 2) {
         unsigned int b = 0;
@@ -49,11 +50,12 @@ int main() {
     RegisterMap regs;
     // Real host clock based on steady_clock
     class RealClock : public IClock {
-    public:
+       public:
         uint32_t nowMs() const override {
             auto now = std::chrono::steady_clock::now();
             return static_cast<uint32_t>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
+                std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch())
+                    .count());
         }
     } clk;
     GpioMock gpio;
@@ -63,8 +65,8 @@ int main() {
     std::queue<std::string> lineQueue;
     std::mutex qmtx;
     std::condition_variable qcv;
-    bool eof = false;           // guarded by qmtx (STAB-D01/D02)
-    std::size_t droppedFrames = 0; // guarded by qmtx (STAB-D03)
+    bool eof = false;               // guarded by qmtx (STAB-D01/D02)
+    std::size_t droppedFrames = 0;  // guarded by qmtx (STAB-D03)
 
     std::thread reader([&]() {
         std::string line;
@@ -78,7 +80,7 @@ int main() {
             {
                 std::lock_guard<std::mutex> lk(qmtx);
                 if (lineQueue.size() >= cfg::MAX_QUEUE_LINES) {
-                    ++droppedFrames; // overflow policy: reject, never block
+                    ++droppedFrames;  // overflow policy: reject, never block
                 } else {
                     lineQueue.push(line);
                 }
@@ -96,9 +98,8 @@ int main() {
         bool eofNow = false;
         {
             std::unique_lock<std::mutex> lk(qmtx);
-            qcv.wait_for(lk, std::chrono::milliseconds(10), [&]() {
-                return !lineQueue.empty() || eof;
-            });
+            qcv.wait_for(lk, std::chrono::milliseconds(10),
+                         [&]() { return !lineQueue.empty() || eof; });
             if (!lineQueue.empty()) {
                 line = lineQueue.front();
                 lineQueue.pop();
@@ -122,7 +123,8 @@ int main() {
                 auto frame = hexDecode(hex);
                 if (!frame.empty()) {
                     ModbusRequest req{};
-                    bool ok = parseModbusRequest(frame.data(), frame.size(), cfg::SLAVE_ADDRESS, req);
+                    bool ok =
+                        parseModbusRequest(frame.data(), frame.size(), cfg::SLAVE_ADDRESS, req);
                     if (ok) {
                         uint8_t resp[256]{};
                         int n = handleModbusRequest(req, regs, resp, 256);
@@ -134,7 +136,7 @@ int main() {
                                 safety.heartbeat(req.value);
                             } else if (req.address == reg::CONTROL_WORD && !isException) {
                                 if (safety.state() == SafetyState::BOOT_SAFE) {
-                                    safety.heartbeat(0); // BOOT_SAFE -> READY
+                                    safety.heartbeat(0);  // BOOT_SAFE -> READY
                                 }
                                 regs.write(reg::CONTROL_WORD, req.value);
                                 if (safety.state() == SafetyState::READY) {
@@ -145,14 +147,15 @@ int main() {
                                 } else if (safety.state() == SafetyState::RUNNING) {
                                     safety.applyControlWord(req.value);
                                 }
-                                safety.heartbeat(0); // refresh window on valid command
+                                safety.heartbeat(0);  // refresh window on valid command
                             }
                         }
 
                         safety.update();
 
                         if (n > 0) {
-                            std::string out = "RESP " + hexEncode(resp, static_cast<std::size_t>(n));
+                            std::string out =
+                                "RESP " + hexEncode(resp, static_cast<std::size_t>(n));
                             std::cout << out << std::endl;
                             std::cout.flush();
                         } else {

@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include "firmware/core/register_map.hpp"
 #include "firmware/core/registers.hpp"
 

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "firmware/core/registers.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
+#include "firmware/core/registers.hpp"
+
 namespace rtu {
 
 class RegisterMap {
-public:
+   public:
     RegisterMap();
 
     // Read a register by address (returns 0 if out of range).
@@ -24,12 +24,12 @@ public:
     void setDeviceStatusBit(uint16_t bit, bool on);
     void setLastError(uint16_t code);
     void incrementUptime();
-    void reset(); // SAFE state
+    void reset();  // SAFE state
 
     uint16_t deviceStatus() const { return regs_[reg::DEVICE_STATUS - reg::FIRST]; }
 
-private:
+   private:
     std::array<uint16_t, reg::COUNT> regs_{};
 };
 
-} // namespace rtu
+}  // namespace rtu

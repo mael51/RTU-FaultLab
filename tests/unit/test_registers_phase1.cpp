@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include "firmware/core/registers.hpp"
 
 using namespace rtu;

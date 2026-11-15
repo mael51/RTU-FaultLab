@@ -7,4 +7,4 @@ uint32_t ClockHost::nowMs() const { return now_; }
 void ClockHost::advance(uint32_t ms) { now_ += ms; }
 void ClockHost::set(uint32_t ms) { now_ = ms; }
 
-} // namespace rtu
+}  // namespace rtu

@@ -3,4 +3,4 @@
 // TODO: implement using HAL_GetTick() or SysTick.
 namespace rtu {
 uint32_t Stm32Clock::nowMs() const { return 0; }
-} // namespace rtu
+}  // namespace rtu

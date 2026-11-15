@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
-#include "firmware/core/safety_controller.hpp"
+
 #include "firmware/core/register_map.hpp"
+#include "firmware/core/registers.hpp"
+#include "firmware/core/safety_controller.hpp"
 #include "firmware/host/clock_host.hpp"
 #include "firmware/host/gpio_mock.hpp"
-#include "firmware/core/registers.hpp"
 
 using namespace rtu;
 
@@ -25,7 +26,7 @@ TEST(SafetyPhase4, HeartbeatReady) {
     RegisterMap regs;
     SafetyController sc(clk, gpio, regs, 1000);
     sc.heartbeat(1);
-    EXPECT_TRUE(sc.isSafe()); // READY is safe
+    EXPECT_TRUE(sc.isSafe());  // READY is safe
     EXPECT_EQ(sc.state(), SafetyState::READY);
     EXPECT_FALSE(gpio.getOutput(0));
 }
@@ -36,8 +37,8 @@ TEST(SafetyPhase4, ActivateRunning) {
     RegisterMap regs;
     SafetyController sc(clk, gpio, regs, 1000);
     regs.write(reg::CONTROL_WORD, 0x0003);
-    sc.heartbeat(1); // BOOT_SAFE -> READY
-    sc.activate();     // READY -> RUNNING
+    sc.heartbeat(1);  // BOOT_SAFE -> READY
+    sc.activate();    // READY -> RUNNING
     EXPECT_FALSE(sc.isSafe());
     EXPECT_TRUE(gpio.getOutput(0));
     EXPECT_TRUE(gpio.getOutput(1));
@@ -106,8 +107,8 @@ TEST(SafetyPhase4, ControlWordUpdateWhileRunning) {
     RegisterMap regs;
     SafetyController sc(clk, gpio, regs, 1000);
     regs.write(reg::CONTROL_WORD, 0x0003);
-    sc.heartbeat(1); // BOOT_SAFE -> READY
-    sc.activate();   // READY -> RUNNING, outputs ON
+    sc.heartbeat(1);  // BOOT_SAFE -> READY
+    sc.activate();    // READY -> RUNNING, outputs ON
     EXPECT_TRUE(gpio.getOutput(0));
     EXPECT_TRUE(gpio.getOutput(1));
     EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0003);
@@ -140,11 +141,11 @@ TEST(SafetyPhase4, HeartbeatKeepsSafeOff) {
     RegisterMap regs;
     SafetyController sc(clk, gpio, regs, 1000);
     regs.write(reg::CONTROL_WORD, 0x0003);
-    sc.heartbeat(1); // BOOT_SAFE -> READY, outputs stay OFF
+    sc.heartbeat(1);  // BOOT_SAFE -> READY, outputs stay OFF
     EXPECT_TRUE(sc.isSafe());
     EXPECT_FALSE(gpio.getOutput(0));
     EXPECT_FALSE(gpio.getOutput(1));
-    sc.activate(); // READY -> RUNNING, outputs ON
+    sc.activate();  // READY -> RUNNING, outputs ON
     EXPECT_FALSE(sc.isSafe());
     EXPECT_TRUE(gpio.getOutput(0));
     EXPECT_TRUE(gpio.getOutput(1));

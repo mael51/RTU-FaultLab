@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
-#include "firmware/host/transport_loopback.hpp"
+
 #include "firmware/core/registers.hpp"
+#include "firmware/host/transport_loopback.hpp"
 
 using namespace rtu;
 

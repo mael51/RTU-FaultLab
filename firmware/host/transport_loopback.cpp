@@ -23,4 +23,4 @@ void TransportLoopback::inject(const uint8_t* data, std::size_t len) {
     rx_.insert(rx_.end(), data, data + len);
 }
 
-} // namespace rtu
+}  // namespace rtu

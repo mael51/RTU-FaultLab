@@ -17,4 +17,4 @@ uint16_t modbusCrc16(const uint8_t* data, std::size_t len) {
     return crc;
 }
 
-} // namespace rtu
+}  // namespace rtu

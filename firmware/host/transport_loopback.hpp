@@ -1,15 +1,15 @@
 #pragma once
 
-#include "firmware/core/interfaces/IByteTransport.hpp"
-
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
+#include "firmware/core/interfaces/IByteTransport.hpp"
+
 namespace rtu {
 
 class TransportLoopback : public IByteTransport {
-public:
+   public:
     bool send(const uint8_t* data, std::size_t len) override;
     std::size_t receive(uint8_t* data, std::size_t max_len) override;
 
@@ -17,9 +17,9 @@ public:
     void inject(const uint8_t* data, std::size_t len);
     const std::vector<uint8_t>& tx() const { return tx_; }
 
-private:
+   private:
     std::vector<uint8_t> rx_;
     std::vector<uint8_t> tx_;
 };
 
-} // namespace rtu
+}  // namespace rtu

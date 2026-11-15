@@ -11,4 +11,4 @@ bool GpioMock::getOutput(int index) const {
     return false;
 }
 
-} // namespace rtu
+}  // namespace rtu

@@ -6,13 +6,11 @@ bool isWritableAddr(uint16_t addr) {
     return addr == rtu::reg::CONTROL_WORD || addr == rtu::reg::HEARTBEAT;
 }
 
-} // namespace
+}  // namespace
 
 namespace rtu {
 
-RegisterMap::RegisterMap() {
-    reset();
-}
+RegisterMap::RegisterMap() { reset(); }
 
 void RegisterMap::reset() {
     regs_.fill(0);
@@ -51,17 +49,17 @@ void RegisterMap::setOutputState(uint16_t value) {
 }
 
 void RegisterMap::setDeviceStatusBit(uint16_t bit, bool on) {
-    if (on) regs_[reg::DEVICE_STATUS - reg::FIRST] |= bit;
-    else    regs_[reg::DEVICE_STATUS - reg::FIRST] &= ~bit;
+    if (on)
+        regs_[reg::DEVICE_STATUS - reg::FIRST] |= bit;
+    else
+        regs_[reg::DEVICE_STATUS - reg::FIRST] &= ~bit;
 }
 
-void RegisterMap::setLastError(uint16_t code) {
-    regs_[reg::LAST_ERROR - reg::FIRST] = code;
-}
+void RegisterMap::setLastError(uint16_t code) { regs_[reg::LAST_ERROR - reg::FIRST] = code; }
 
 void RegisterMap::incrementUptime() {
     uint16_t& u = regs_[reg::UPTIME_SECONDS - reg::FIRST];
     if (u != 0xFFFF) ++u;
 }
 
-} // namespace rtu
+}  // namespace rtu

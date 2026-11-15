@@ -1,23 +1,23 @@
 #include "firmware/core/modbus_handler.hpp"
-#include "firmware/core/modbus_crc.hpp"
-#include "firmware/core/register_map.hpp"
 
 #include <cstddef>
 #include <cstdint>
+
+#include "firmware/core/modbus_crc.hpp"
+#include "firmware/core/register_map.hpp"
 
 namespace rtu {
 
 namespace {
 void putCrc(uint8_t* buf, std::size_t len) {
     uint16_t crc = modbusCrc16(buf, len);
-    buf[len]     = static_cast<uint8_t>(crc & 0xFF);
+    buf[len] = static_cast<uint8_t>(crc & 0xFF);
     buf[len + 1] = static_cast<uint8_t>((crc >> 8) & 0xFF);
 }
-} // namespace
+}  // namespace
 
-int handleModbusRequest(const ModbusRequest& req,
-                        RegisterMap& regs,
-                        uint8_t* response, std::size_t resp_capacity) {
+int handleModbusRequest(const ModbusRequest& req, RegisterMap& regs, uint8_t* response,
+                        std::size_t resp_capacity) {
     if (response == nullptr) return 0;
 
     // FC03 - Read Holding Registers
@@ -39,7 +39,7 @@ int handleModbusRequest(const ModbusRequest& req,
         response[2] = static_cast<uint8_t>(byte_count);
         for (uint16_t i = 0; i < req.count; ++i) {
             uint16_t v = regs.read(req.address + i);
-            response[3 + i * 2]     = static_cast<uint8_t>((v >> 8) & 0xFF);
+            response[3 + i * 2] = static_cast<uint8_t>((v >> 8) & 0xFF);
             response[3 + i * 2 + 1] = static_cast<uint8_t>(v & 0xFF);
         }
         putCrc(response, 3 + byte_count);
@@ -81,4 +81,4 @@ int handleModbusRequest(const ModbusRequest& req,
     return 5;
 }
 
-} // namespace rtu
+}  // namespace rtu

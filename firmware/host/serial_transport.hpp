@@ -1,16 +1,16 @@
 #pragma once
 
-#include "firmware/core/interfaces/IByteTransport.hpp"
-
 #include <cstdint>
 #include <string>
+
+#include "firmware/core/interfaces/IByteTransport.hpp"
 
 namespace rtu {
 
 // Serial transport (UART/RS-485) for host PC.
 // Uses native APIs (Windows: CreateFile; Linux: termios).
 class SerialTransport : public IByteTransport {
-public:
+   public:
     explicit SerialTransport(const std::string& port, uint32_t baud = 19200);
     ~SerialTransport() override;
 
@@ -22,10 +22,10 @@ public:
 
     bool isOpen() const { return handle_ != nullptr; }
 
-private:
+   private:
     std::string port_;
     uint32_t baud_;
-    void* handle_; // HANDLE on Windows, int fd on Linux
+    void* handle_;  // HANDLE on Windows, int fd on Linux
 };
 
-} // namespace rtu
+}  // namespace rtu

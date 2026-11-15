@@ -13,12 +13,12 @@ struct ModbusFrame {
 };
 
 struct ModbusRequest {
-    uint8_t  slave    = 0;
-    uint8_t  function = 0;
-    uint16_t address  = 0;
-    uint16_t value    = 0; // FC06
-    uint16_t count    = 0; // FC03
-    bool     crc_ok   = false;
+    uint8_t slave = 0;
+    uint8_t function = 0;
+    uint16_t address = 0;
+    uint16_t value = 0;  // FC06
+    uint16_t count = 0;  // FC03
+    bool crc_ok = false;
 };
 
-} // namespace rtu
+}  // namespace rtu

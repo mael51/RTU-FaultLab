@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include "firmware/core/modbus_crc.hpp"
 
 using namespace rtu;
@@ -10,6 +11,4 @@ TEST(ModbusCrc, KnownVector) {
     EXPECT_EQ(crc, 0x0A84);
 }
 
-TEST(ModbusCrc, Empty) {
-    EXPECT_EQ(modbusCrc16(nullptr, 0), 0xFFFF);
-}
+TEST(ModbusCrc, Empty) { EXPECT_EQ(modbusCrc16(nullptr, 0), 0xFFFF); }
