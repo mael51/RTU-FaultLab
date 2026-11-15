@@ -1,5 +1,7 @@
 #include "firmware/host/transport_loopback.hpp"
 
+#include <algorithm>
+
 namespace rtu {
 
 bool TransportLoopback::send(const uint8_t* data, std::size_t len) {

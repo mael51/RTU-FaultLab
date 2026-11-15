@@ -41,7 +41,7 @@ bool SerialTransport::open() {
     handle_ = h;
     return true;
 #else
-    int fd = open(port_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+    int fd = ::open(port_.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) return false;
     struct termios tty{};
     if (tcgetattr(fd, &tty) != 0) { ::close(fd); return false; }

@@ -9,48 +9,45 @@ on:
 jobs:
   build-and-test:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup MSYS2
+      - name: Setup MSYS2 (UCRT64)
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-clang
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-cppcheck
       - name: Configure
-        shell: msys2 {0}
-        run: |
-          cmake -G "MSYS Makefiles" -S . -B build
+        run: cmake -G Ninja -S . -B build
       - name: Build
-        shell: msys2 {0}
-        run: cmake --build build
+        run: cmake --build build --parallel
       - name: Test C++
-        shell: msys2 {0}
         run: |
           cd build
           ./rtufaultlab_tests.exe
       - name: Format check
-        shell: msys2 {0}
         run: |
           find firmware tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror
       - name: Static analysis (cppcheck)
-        shell: msys2 {0}
         run: |
-          pacman -S --noconfirm mingw-w64-x86_64-cppcheck
           cppcheck --enable=warning,style,performance,portability --error-exitcode=1 firmware/ tests/ 2>&1 | tail -20
       - name: Python tests
+        shell: bash
         run: |
           pip install pytest pyyaml
           python -m pytest tests/integration -q
-        shell: bash
       - name: Smoke campaign
+        shell: bash
         run: |
           python bench/runner/cli.py bench/campaigns/smoke.yaml --dut build/rtufaultlab_dut_host.exe --reports bench/reports
-        shell: bash
 
   sanitizers:
     runs-on: ubuntu-latest
