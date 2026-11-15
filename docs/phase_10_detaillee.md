@@ -1,6 +1,6 @@
 # Phase 10 - Portage STM32 (Documentation détaillée)
 
-**Statut** : ✅ Validée (architecture préparée)
+**Statut** : ✅ Validée (architecture préparée — portage matériel en attente)
 **Date** : —
 **Tests** : —
 

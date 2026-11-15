@@ -1,6 +1,6 @@
 # Phase 10 - Portage STM32 / FreeRTOS et adapter HAL
 
-**Statut** : ✅ Validée (architecture préparée)
+**Statut** : ✅ Validée (architecture préparée — portage matériel en attente)
 **Objectif** : Implémenter l'adapter STM32 : HAL UART, GPIO, FreeRTOS, UART/RS-485 basse tension, tests sur cible (jalon M5, optionnel).
 
 ```mermaid

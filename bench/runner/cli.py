@@ -85,12 +85,15 @@ def main():
 
         timed_out = False
         response_hex = None
+        if not frames:
+            # drop: no frame sent -> timeout
+            timed_out = True
         # send (possibly multiple) frames; last response wins
         for f in frames:
             if cfg.delay_ms and cfg.delay_ms > camp.timeout_ms:
                 timed_out = True
                 continue
-            r = transport.send_frame(f, timeout_ms=camp.timeout_ms)
+            r = transport.send_frame(f, timeout_ms=camp.timeout_ms, delay_ms=cfg.delay_ms)
             if r is None:
                 timed_out = True
             else:

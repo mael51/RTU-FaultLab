@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import threading
 import time
 from typing import Optional
 
@@ -20,6 +21,16 @@ class VirtualTransport:
             bufsize=1,
             env=env,
         )
+        # Consume stderr in background to avoid pipe deadlock
+        self._stderr_lines = []
+        self._stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+        self._stderr_thread.start()
+
+    def _read_stderr(self):
+        if self.proc.stderr is None:
+            return
+        for line in self.proc.stderr:
+            self._stderr_lines.append(line.strip())
 
     def _restart(self):
         self.close()
@@ -34,8 +45,14 @@ class VirtualTransport:
             bufsize=1,
             env=env,
         )
+        self._stderr_lines = []
+        self._stderr_thread = threading.Thread(target=self._read_stderr, daemon=True)
+        self._stderr_thread.start()
 
-    def send_frame(self, frame_hex: str, timeout_ms: int = 250) -> Optional[str]:
+    def send_frame(self, frame_hex: str, timeout_ms: int = 250, delay_ms: int = 0) -> Optional[str]:
+        if delay_ms and delay_ms > 0:
+            time.sleep(delay_ms / 1000.0)
+
         if self.proc.poll() is not None:
             self._restart()
         assert self.proc.stdin is not None
@@ -47,10 +64,6 @@ class VirtualTransport:
             assert self.proc.stdin is not None
             self.proc.stdin.write(f"REQ {frame_hex}\n")
             self.proc.stdin.flush()
-        # read response with timeout
-        import select
-        # Windows: select on pipes not supported; use readline with timeout via thread
-        import threading
 
         result = {"line": None}
 
@@ -68,7 +81,7 @@ class VirtualTransport:
             return None
         line = line.strip()
         if line.startswith("RESP "):
-            time.sleep(0.05)
+            time.sleep(0.02)
             return line[5:]
         return None
 
@@ -79,3 +92,7 @@ class VirtualTransport:
             self.proc.wait(timeout=5)
         except Exception:
             self.proc.kill()
+
+    @property
+    def stderr_lines(self):
+        return list(self._stderr_lines)
