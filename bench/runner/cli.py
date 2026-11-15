@@ -14,7 +14,7 @@ from oracle import check_expect
 from reporters.junit import write_junit
 from reporters.json_report import write_json
 from reporters.html_report import write_html
-from traceability import build_traceability
+from traceability import build_traceability, traceability_violations
 
 
 def crc16(data: bytes) -> int:
@@ -63,10 +63,6 @@ def main():
         frame = build_frame(1, tc.action, tc.address, tc.value, tc.count)
 
         # fault injection
-        cfg = FaultConfig(seed=camp.seed, **{k: v for k, v in tc.inject.items()
-                                            if k in ("drop", "delay_ms", "duplicate",
-                                                     "corrupt_crc", "truncate")})
-        # normalize inject keys
         inj = {}
         if "corrupt_crc" in tc.inject:
             inj["corrupt_crc"] = bool(tc.inject["corrupt_crc"])
@@ -82,44 +78,61 @@ def main():
 
         fi = FaultInjector(cfg)
         frames = fi.apply(frame)
-
-        timed_out = False
-        response_hex = None
-        if not frames:
-            # drop: no frame sent -> timeout
-            timed_out = True
-        # send (possibly multiple) frames; last response wins
-        for f in frames:
-            if cfg.delay_ms and cfg.delay_ms > camp.timeout_ms:
+        # Verify configured faults were really applied (STAB-E02).
+        applied = set()
+        for m in fi.log.mutations:
+            applied.add(m.split(":")[0])
+        for fault in ("drop", "delay", "duplicate", "corrupt_crc", "truncate"):
+            if fault in inj and fault not in applied:
+                print(f"{tc.id}: FAIL (configured fault '{fault}' not applied)")
+                all_pass = False
+                results.append({
+                    "id": tc.id,
+                    "requirement": tc.requirement,
+                    "passed": False,
+                    "response": None,
+                    "timed_out": False,
+                    "mutations": fi.log.mutations,
+                })
+                break
+        else:
+            timed_out = False
+            response_hex = None
+            if not frames:
+                # drop: no frame sent -> timeout
                 timed_out = True
-                continue
-            r = transport.send_frame(f, timeout_ms=camp.timeout_ms, delay_ms=cfg.delay_ms)
-            if r is None:
-                timed_out = True
-            else:
-                response_hex = r
+            # send (possibly multiple) frames; last response wins
+            for f in frames:
+                if cfg.delay_ms and cfg.delay_ms > camp.timeout_ms:
+                    timed_out = True
+                    continue
+                r = transport.send_frame(f, timeout_ms=camp.timeout_ms, delay_ms=cfg.delay_ms)
+                if r is None:
+                    timed_out = True
+                else:
+                    response_hex = r
 
-        # dut state: read output state register
-        state_frame = build_frame(1, "read_holding_registers", 0x0001, 0, 1)
-        st_resp = transport.send_frame(state_frame, timeout_ms=camp.timeout_ms)
-        dut_state = {"output_state": 0}
-        if st_resp:
-            parts = st_resp.split()
-            if len(parts) >= 5:
-                dut_state["output_state"] = (int(parts[3], 16) << 8) | int(parts[4], 16)
+            # dut state: read output state register
+            state_frame = build_frame(1, "read_holding_registers", 0x0001, 0, 1)
+            st_resp = transport.send_frame(state_frame, timeout_ms=camp.timeout_ms)
+            dut_state = {"output_state": 0}
+            if st_resp:
+                parts = st_resp.split()
+                if len(parts) >= 5:
+                    dut_state["output_state"] = (int(parts[3], 16) << 8) | int(parts[4], 16)
 
-        ok = check_expect(tc.expect, response_hex, dut_state, timed_out)
-        if not ok:
-            all_pass = False
-        results.append({
-            "id": tc.id,
-            "requirement": tc.requirement,
-            "passed": ok,
-            "response": response_hex,
-            "timed_out": timed_out,
-            "mutations": fi.log.mutations,
-        })
-        print(f"{tc.id}: {'PASS' if ok else 'FAIL'}")
+            ok = check_expect(tc.expect, response_hex, dut_state, timed_out)
+            if not ok:
+                all_pass = False
+            results.append({
+                "id": tc.id,
+                "requirement": tc.requirement,
+                "passed": ok,
+                "response": response_hex,
+                "timed_out": timed_out,
+                "mutations": fi.log.mutations,
+            })
+            print(f"{tc.id}: {'PASS' if ok else 'FAIL'}")
 
     transport.close()
 
@@ -136,7 +149,14 @@ def main():
         write_html(camp.id, results, os.path.join(reports_dir, "report.html"))
         req_path = os.path.abspath(args.requirements)
         if os.path.exists(req_path):
-            build_traceability(req_path, results, os.path.join(reports_dir, "traceability.json"))
+            matrix = build_traceability(req_path, results,
+                                        os.path.join(reports_dir, "traceability.json"))
+            violations = traceability_violations(matrix)
+            if violations:
+                print("TRACEABILITY VIOLATIONS:")
+                for v in violations:
+                    print(f"  - {v}")
+                all_pass = False
 
     sys.exit(0 if all_pass else 1)
 

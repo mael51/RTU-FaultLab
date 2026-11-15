@@ -66,6 +66,10 @@ non_functional:
   NFR-008: { description: Reports distinguish simulated vs hardware., tests: [] }
 
 test_cases:
+  TC-CFG-001: { requirement: FR-001, stimulus: Load valid / malformed campaign YAML, expected: loaded or rejected with error, level: integration-python }
+  TC-REP-001: { requirement: FR-010, stimulus: Run campaign with reports, expected: JUnit/JSON/HTML generated, level: integration-python }
+  TC-TRC-001: { requirement: FR-011, stimulus: Generate traceability matrix, expected: statuses consistent, level: integration-python }
+  TC-IPC-001: { requirement: FR-013, stimulus: REQ/RESP envelope exchange with DUT host, expected: response parsed, level: integration-python }
   TC-001: { requirement: FR-003, stimulus: Read existing register FC03, expected: correct response }
   TC-002: { requirement: [FR-002, FR-005], stimulus: Invalid CRC on write request, expected: rejected, outputs unchanged }
   TC-003: { requirement: [FR-002, FR-005], stimulus: Truncated / inconsistent length, expected: no partial processing, diagnostic }

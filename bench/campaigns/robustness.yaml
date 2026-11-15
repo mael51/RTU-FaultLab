@@ -10,6 +10,7 @@ campaign:
       address: 0x0000
       value: 0x0004
       expect:
+        exception: 3
         dut_output_state: 0x0000
     - id: TC-006
       requirement: FR-004
@@ -17,4 +18,5 @@ campaign:
       address: 0x0001
       value: 0x0001
       expect:
+        exception: 2
         dut_output_state: 0x0000

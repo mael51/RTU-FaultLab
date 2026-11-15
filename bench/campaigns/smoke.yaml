@@ -19,4 +19,5 @@ campaign:
       inject:
         corrupt_crc: true
       expect:
+        status: timeout
         dut_output_state: 0x0000
