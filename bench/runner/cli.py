@@ -129,16 +129,10 @@ def main():
                         transport.read_response(timeout_ms=remaining_timeout)
                         timed_out = True
                         continue
-                    if cfg.delay_response_ms > camp.timeout_ms:
-                        # RX delay beyond the runner timeout: declared lost
-                        timed_out = True
-                        # consume the late response so it doesn't pollute the next request
-                        transport.read_response(timeout_ms=250)
-                        transport.discard_next_response()
-                        continue
                     if cfg.delay_response_ms:
-                        # RX delay within timeout: read with the full window
-                        r = transport.read_response(timeout_ms=camp.timeout_ms)
+                        # RX delay: handled by the timestamped transport queue
+                        r = transport.read_response(timeout_ms=camp.timeout_ms,
+                                                   delay_ms=cfg.delay_response_ms)
                         if r is None:
                             timed_out = True
                         else:

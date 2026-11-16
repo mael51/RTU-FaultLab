@@ -5,6 +5,7 @@ Design (STAB-E01):
   pushed into a thread-safe queue and correlated sequentially by the caller.
 - Exactly one persistent reader thread owns ``proc.stderr``.
 - Timeouts use ``time.monotonic()``-based blocking queue reads (no busy sleep).
+- Responses are timestamped at arrival so RX delays can be simulated faithfully.
 - No hardcoded toolchain paths: the DUT inherits the current environment; pass
   a ``PATH``-prepared environment via the ``env`` argument if needed.
 - Clean shutdown: terminate -> bounded wait -> kill -> join reader threads.
@@ -55,7 +56,8 @@ class VirtualTransport:
             for line in self.proc.stdout:
                 line = line.strip()
                 if line.startswith("RESP "):
-                    self._resp_q.put(line[5:])
+                    # Stamp with arrival time (monotonic) for delayed RX simulation.
+                    self._resp_q.put((time.monotonic(), line[5:]))
         except (OSError, ValueError):
             pass  # stream closed during shutdown
         finally:
@@ -86,25 +88,40 @@ class VirtualTransport:
             self.proc.stdin.write(f"REQ {frame_hex}\n")
             self.proc.stdin.flush()
 
-    def read_response(self, timeout_ms: int = 250) -> Optional[str]:
+    def read_response(self, timeout_ms: int = 250, delay_ms: int = 0) -> Optional[str]:
         """Read one correlated response, or None on timeout (STAB-V1-B3).
 
-        After a timeout the response may still arrive later; the next
-        read_response purges stale responses first so a late reply can never
-        be attributed to a subsequent request.
+        ``delay_ms`` simulates a RX delay: a response is only considered
+        available ``delay_ms`` after its (timestamped) arrival.
         """
         if self._resync_needed:
             self._resync_needed = False
             self._purge_pending()
 
-        try:
-            line = self._resp_q.get(timeout=timeout_ms / 1000.0)
-        except queue.Empty:
-            self._resync_needed = True
-            return None
-        if line is _STOP:
-            return None  # DUT closed stdout (EOF / crash)
-        return line
+        deadline = time.monotonic() + timeout_ms / 1000.0
+        while True:
+            now = time.monotonic()
+            if now >= deadline:
+                self._resync_needed = True
+                return None
+            try:
+                item = self._resp_q.get_nowait()
+            except queue.Empty:
+                time.sleep(0.005)
+                continue
+            if item is _STOP:
+                return None
+            arrival, payload = item
+            ready_at = arrival + delay_ms / 1000.0
+            if now >= ready_at:
+                return payload
+            # not ready yet: put back and wait
+            self._resp_q.put(item)
+            wait = min(0.01, ready_at - now, deadline - now)
+            if wait <= 0:
+                self._resync_needed = True
+                return None
+            time.sleep(wait)
 
     def _purge_pending(self) -> None:
         """Drop queued responses from an earlier timed-out request."""
@@ -114,8 +131,9 @@ class VirtualTransport:
                 item = self._resp_q.get_nowait()
             except queue.Empty:
                 break
-            if item is not _STOP:
-                dropped += 1
+            if item is _STOP:
+                continue
+            dropped += 1
         if dropped:
             with self._stderr_lock:
                 self._stderr_lines.append(
@@ -132,7 +150,13 @@ class VirtualTransport:
         if delay_ms and delay_ms > 0:
             time.sleep(delay_ms / 1000.0)
         self.write_request(frame_hex)
-        return self.read_response(timeout_ms)
+        return self.read_response(timeout_ms, delay_ms=delay_ms)
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self._shutdown_process()
 
     # ----------------------------------------------------------- restart/close
     def _restart_if_dead(self) -> None:
@@ -178,12 +202,6 @@ class VirtualTransport:
             pass
         for t in (self._stdout_thread, self._stderr_thread):
             t.join(timeout=2)
-
-    def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
-        self._shutdown_process()
 
     @property
     def stderr_lines(self) -> List[str]:

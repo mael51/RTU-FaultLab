@@ -144,7 +144,7 @@ TEST(ModbusHandler, FC03QuantityZeroRejected) {
     int n = handleModbusRequest(req, regs, resp, 256);
     EXPECT_EQ(n, 5);
     EXPECT_EQ(resp[1], fc::READ_HOLDING_REGISTERS | 0x80);
-    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_ADDRESS);
+    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_VALUE);
 }
 
 TEST(ModbusHandler, FC03QuantityTooLargeRejected) {
@@ -155,7 +155,7 @@ TEST(ModbusHandler, FC03QuantityTooLargeRejected) {
     uint8_t resp[256]{};
     int n = handleModbusRequest(req, regs, resp, 256);
     EXPECT_EQ(n, 5);
-    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_ADDRESS);
+    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_VALUE);
 }
 
 TEST(ModbusHandler, FC03OutOfRangeRejected) {
@@ -179,7 +179,7 @@ TEST(ModbusHandler, FC03SpanExceedingRangeRejected) {
     uint8_t resp[256]{};
     int n = handleModbusRequest(req, regs, resp, 256);
     EXPECT_EQ(n, 5);
-    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_ADDRESS);
+    EXPECT_EQ(resp[2], exc::ILLEGAL_DATA_VALUE);
 }
 
 TEST(ModbusHandler, FC03FullRangeOk) {

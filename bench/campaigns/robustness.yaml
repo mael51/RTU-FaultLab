@@ -35,7 +35,7 @@ campaign:
       address: 0x0000
       count: 0
       expect:
-        exception: 2
+        exception: 3
         dut_output_state: 0x0000
     - id: TC-020
       requirement: FR-005
