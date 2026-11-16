@@ -1,2 +1,0 @@
-C:/msys64/mingw64/bin/ar.exe qc librtufaultlab_host.a CMakeFiles/rtufaultlab_host.dir/firmware/host/clock_host.cpp.obj CMakeFiles/rtufaultlab_host.dir/firmware/host/gpio_mock.cpp.obj CMakeFiles/rtufaultlab_host.dir/firmware/host/transport_loopback.cpp.obj CMakeFiles/rtufaultlab_host.dir/firmware/host/serial_transport.cpp.obj
-C:/msys64/mingw64/bin/ranlib.exe librtufaultlab_host.a
