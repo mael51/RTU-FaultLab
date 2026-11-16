@@ -1,8 +1,8 @@
 # Build directories
 build/
 build_*/
-build_san/
-build_cov/
+build-cov/
+build-cov_*/
 
 # Python
 __pycache__/
