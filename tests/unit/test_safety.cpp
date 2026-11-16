@@ -153,3 +153,91 @@ TEST(SafetyPhase4, HeartbeatKeepsSafeOff) {
     sc.update();
     EXPECT_FALSE(sc.isSafe());
 }
+
+// ---------------------------------------------------------------------------
+// Watchdog boundary tests (V1-B2): convention is "expired" when
+// elapsed > timeout_ms, i.e. 1000 ms elapsed does NOT trigger, 1001 ms does.
+// ---------------------------------------------------------------------------
+
+TEST(SafetyPhase4, WatchdogBoundary999ms) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1);
+    sc.activate();
+    clk.advance(999);
+    sc.update();
+    EXPECT_EQ(sc.state(), SafetyState::RUNNING);
+    EXPECT_TRUE(gpio.getOutput(0));  // outputs still applied
+}
+
+TEST(SafetyPhase4, WatchdogBoundary1000ms) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1);
+    sc.activate();
+    clk.advance(1000);
+    sc.update();
+    EXPECT_EQ(sc.state(), SafetyState::RUNNING);
+    EXPECT_TRUE(gpio.getOutput(0));
+}
+
+TEST(SafetyPhase4, WatchdogBoundary1001ms) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1);
+    sc.activate();
+    clk.advance(1001);
+    sc.update();
+    EXPECT_EQ(sc.state(), SafetyState::SAFE_TIMEOUT);
+    EXPECT_FALSE(gpio.getOutput(0));
+    EXPECT_FALSE(gpio.getOutput(1));
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0000);
+}
+
+TEST(SafetyPhase4, HeartbeatRefreshJustBeforeTimeout) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0003);
+    sc.heartbeat(1);
+    sc.activate();
+    // keep refreshing just before the limit: never expires
+    for (int i = 0; i < 10; ++i) {
+        clk.advance(900);
+        sc.heartbeat(1);
+        sc.update();
+        EXPECT_EQ(sc.state(), SafetyState::RUNNING);
+    }
+    EXPECT_TRUE(gpio.getOutput(0));
+}
+
+// Invariant: OUTPUT_STATE always mirrors the applied GPIO state.
+TEST(SafetyPhase4, OutputStateMirrorsGpio) {
+    ClockHost clk(0);
+    GpioMock gpio;
+    RegisterMap regs;
+    SafetyController sc(clk, gpio, regs, 1000);
+    regs.write(reg::CONTROL_WORD, 0x0001);
+    sc.heartbeat(1);
+    sc.activate();
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE),
+              (gpio.getOutput(0) ? 0x0001 : 0) | (gpio.getOutput(1) ? 0x0002 : 0));
+    regs.write(reg::CONTROL_WORD, 0x0002);
+    sc.applyControlWord(0x0002);
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE),
+              (gpio.getOutput(0) ? 0x0001 : 0) | (gpio.getOutput(1) ? 0x0002 : 0));
+    clk.advance(1500);
+    sc.update();  // timeout: outputs OFF, register 0
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE),
+              (gpio.getOutput(0) ? 0x0001 : 0) | (gpio.getOutput(1) ? 0x0002 : 0));
+}
