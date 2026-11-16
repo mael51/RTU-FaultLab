@@ -29,6 +29,7 @@ class VirtualTransport:
         self._stderr_lock = threading.Lock()
         self._closed = False
         self._restart_count = 0
+        self._resync_needed = False
         self._start_process()
 
     # ------------------------------------------------------------------ setup
@@ -71,12 +72,8 @@ class VirtualTransport:
             pass
 
     # ------------------------------------------------------------------ send
-    def send_frame(self, frame_hex: str, timeout_ms: int = 250,
-                   delay_ms: int = 0) -> Optional[str]:
-        """Send one request frame; return the response hex (or None on timeout)."""
-        if delay_ms and delay_ms > 0:
-            time.sleep(delay_ms / 1000.0)
-
+    def write_request(self, frame_hex: str) -> None:
+        """Write one request envelope to the DUT stdin (no response read)."""
         if self.proc.poll() is not None:
             self._restart_if_dead()
         try:
@@ -89,13 +86,53 @@ class VirtualTransport:
             self.proc.stdin.write(f"REQ {frame_hex}\n")
             self.proc.stdin.flush()
 
+    def read_response(self, timeout_ms: int = 250) -> Optional[str]:
+        """Read one correlated response, or None on timeout (STAB-V1-B3).
+
+        After a timeout the response may still arrive later; the next
+        read_response purges stale responses first so a late reply can never
+        be attributed to a subsequent request.
+        """
+        if self._resync_needed:
+            self._resync_needed = False
+            self._purge_pending()
+
         try:
             line = self._resp_q.get(timeout=timeout_ms / 1000.0)
         except queue.Empty:
-            return None  # timeout
+            self._resync_needed = True
+            return None
         if line is _STOP:
             return None  # DUT closed stdout (EOF / crash)
         return line
+
+    def _purge_pending(self) -> None:
+        """Drop queued responses from an earlier timed-out request."""
+        dropped = 0
+        while True:
+            try:
+                item = self._resp_q.get_nowait()
+            except queue.Empty:
+                break
+            if item is not _STOP:
+                dropped += 1
+        if dropped:
+            with self._stderr_lock:
+                self._stderr_lines.append(
+                    f"transport: purged {dropped} late response(s) after timeout"
+                )
+
+    def discard_next_response(self) -> None:
+        """Declare the next (possibly late) response as lost; purge on next read."""
+        self._resync_needed = True
+
+    def send_frame(self, frame_hex: str, timeout_ms: int = 250,
+                   delay_ms: int = 0) -> Optional[str]:
+        """Send one request frame; return the response hex (or None on timeout)."""
+        if delay_ms and delay_ms > 0:
+            time.sleep(delay_ms / 1000.0)
+        self.write_request(frame_hex)
+        return self.read_response(timeout_ms)
 
     # ----------------------------------------------------------- restart/close
     def _restart_if_dead(self) -> None:
@@ -110,6 +147,7 @@ class VirtualTransport:
 
     def restart(self) -> None:
         self._restart_count = 0
+        self._resync_needed = False
         self._shutdown_process()
         self._resp_q = queue.Queue()
         self._stderr_lines = []

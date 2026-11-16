@@ -65,6 +65,8 @@ def check_expect(expect: dict, response_hex: str, dut_state: dict,
     if "exception" in expect:
         if response_hex is None:
             return False
+        if not check_crc(response_hex):
+            return False  # exceptions must also carry a valid CRC
         parsed = parse_response(response_hex)
         if parsed is None:
             return False
@@ -130,7 +132,11 @@ def check_expect(expect: dict, response_hex: str, dut_state: dict,
         expected = expect["dut_output_state"]
         if isinstance(expected, str):
             expected = int(expected, 16) if expected.startswith("0x") else int(expected)
-        if dut_state.get("output_state") != expected:
+        got = dut_state.get("output_state")
+        if got is None:
+            # state was never read: an assertion on it can never PASS (V1-B3)
+            return False
+        if got != expected:
             return False
 
     return True

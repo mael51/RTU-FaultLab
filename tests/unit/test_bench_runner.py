@@ -81,6 +81,19 @@ def test_oracle_exception_wrong_code():
     assert check_expect({"exception": 0x02}, response(exception=0x02), {}, False)
 
 
+def test_oracle_exception_requires_valid_crc():
+    r = response(exception=0x02)
+    parts = r.split()
+    parts[-2] = f"{int(parts[-2], 16) ^ 0xFF:02X}"
+    assert not check_expect({"exception": 0x02}, " ".join(parts), {}, False)
+
+
+def test_oracle_unknown_output_state_never_passes():
+    # output state not read (None): an assertion on it can never PASS (V1-B3)
+    assert not check_expect({"dut_output_state": 0}, None, {"output_state": None}, False)
+    assert not check_expect({"dut_output_state": 1}, None, {"output_state": None}, False)
+
+
 def test_oracle_expected_timeout():
     assert check_expect({"status": "timeout"}, None, {}, True)
     assert not check_expect({"status": "timeout"}, response(), {}, False)
@@ -149,6 +162,18 @@ def test_injector_delay_logged():
     out = fi.apply(frame())
     assert len(out) == 1
     assert "delay:150ms" in fi.log.mutations
+
+
+def test_injector_rx_faults_declared():
+    fi = FaultInjector(FaultConfig(seed=1, drop_response=True))
+    out = fi.apply(frame())
+    assert len(out) == 1  # request passes through
+    assert "drop_response" in fi.log.mutations
+    fi2 = FaultInjector(FaultConfig(seed=1, delay_response_ms=300))
+    out2 = fi2.apply(frame())
+    assert len(out2) == 1
+    assert "delay_response:300ms" in out2[0] or "delay_response:300ms" in fi2.log.mutations
+    assert "delay_response:300ms" in fi2.log.mutations
 
 
 # ---------------------------------------------------------------------------

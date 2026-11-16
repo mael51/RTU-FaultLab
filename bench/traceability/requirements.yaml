@@ -91,3 +91,5 @@ test_cases:
   TC-019: { requirement: FR-005, stimulus: FC03 quantity 0, expected: illegal data address exception, level: campaign }
   TC-020: { requirement: FR-005, stimulus: FC03 address beyond register map, expected: illegal data address exception, level: campaign }
   TC-021: { requirement: FR-005, stimulus: FC06 address beyond register map, expected: illegal data address exception, level: campaign }
+  # TC-009/010/011 now implemented as campaign scenarios with RX faults
+  # TC-009: duplicate TX; TC-010: response loss (RX); TC-011: response delay beyond timeout (RX)

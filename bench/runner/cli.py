@@ -80,15 +80,20 @@ def main():
             inj["truncate"] = bool(tc.inject["truncate"])
         if "delay_ms" in tc.inject:
             inj["delay_ms"] = int(tc.inject["delay_ms"])
+        if "drop_response" in tc.inject:
+            inj["drop_response"] = bool(tc.inject["drop_response"])
+        if "delay_response_ms" in tc.inject:
+            inj["delay_response_ms"] = int(tc.inject["delay_response_ms"])
         cfg = FaultConfig(seed=camp.seed, **inj)
 
         fi = FaultInjector(cfg)
         frames = fi.apply(frame)
-        # Verify configured faults were really applied (STAB-E02).
+        # Verify configured faults were really applied (STAB-E02 / V1-B4).
         applied = set()
         for m in fi.log.mutations:
             applied.add(m.split(":")[0])
-        for fault in ("drop", "delay", "duplicate", "corrupt_crc", "truncate"):
+        for fault in ("drop", "delay", "duplicate", "corrupt_crc", "truncate",
+                      "drop_response", "delay_response"):
             if fault in inj and fault not in applied:
                 print(f"{tc.id}: FAIL (configured fault '{fault}' not applied)")
                 all_pass = False
@@ -107,21 +112,39 @@ def main():
             if not frames:
                 # drop: no frame sent -> timeout
                 timed_out = True
-            # send (possibly multiple) frames; last response wins
-            for f in frames:
-                if cfg.delay_ms and cfg.delay_ms > camp.timeout_ms:
-                    timed_out = True
-                    continue
-                r = transport.send_frame(f, timeout_ms=camp.timeout_ms, delay_ms=cfg.delay_ms)
-                if r is None:
-                    timed_out = True
-                else:
-                    response_hex = r
+            else:
+                for f in frames:
+                    if cfg.delay_ms and cfg.delay_ms > camp.timeout_ms:
+                        timed_out = True
+                        continue
+                    transport.write_request(f)
+                    if cfg.drop_response:
+                        # RX fault: the request reaches the DUT, the response
+                        # is declared lost; the DUT effect remains checkable.
+                        transport.read_response(timeout_ms=camp.timeout_ms)
+                        timed_out = True
+                        continue
+                    if cfg.delay_response_ms > camp.timeout_ms:
+                        # RX delay beyond the runner timeout: declared lost
+                        timed_out = True
+                        transport.discard_next_response()
+                        continue
+                    if cfg.delay_response_ms:
+                        # RX delay: hold the response back deterministically
+                        time.sleep(cfg.delay_response_ms / 1000.0)
+                        remaining = camp.timeout_ms - cfg.delay_response_ms
+                        r = transport.read_response(timeout_ms=remaining)
+                    else:
+                        r = transport.read_response(timeout_ms=camp.timeout_ms)
+                    if r is None:
+                        timed_out = True
+                    else:
+                        response_hex = r
 
-            # dut state: read output state register
+            # dut state: read output state register (None = unknown, V1-B3)
             state_frame = build_frame(1, "read_holding_registers", 0x0001, 0, 1)
             st_resp = transport.send_frame(state_frame, timeout_ms=camp.timeout_ms)
-            dut_state = {"output_state": 0}
+            dut_state = {"output_state": None}
             if st_resp:
                 parts = st_resp.split()
                 if len(parts) >= 5:

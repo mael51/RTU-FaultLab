@@ -53,3 +53,33 @@ campaign:
       expect:
         exception: 2
         dut_output_state: 0x0000
+    - id: TC-009
+      requirement: [FR-007, FR-009]
+      action: write_single_register
+      address: 0x0000
+      value: 0x0001
+      inject:
+        duplicate: true
+      expect:
+        status: success
+        dut_output_state: 0x0001
+    - id: TC-010
+      requirement: [FR-007, FR-009]
+      action: write_single_register
+      address: 0x0000
+      value: 0x0000
+      inject:
+        drop_response: true
+      expect:
+        status: timeout
+        dut_output_state: 0x0000
+    - id: TC-011
+      requirement: [FR-007, FR-009]
+      action: write_single_register
+      address: 0x0000
+      value: 0x0001
+      inject:
+        delay_response_ms: 300
+      expect:
+        status: timeout
+        dut_output_state: 0x0001
