@@ -76,6 +76,38 @@ python bench/demo.py
 
 Affiche une campagne nominale (smoke) puis une campagne avec défauts (robustness).
 
+## Injection de défauts
+
+Chaque défaut déclare son **point d'application** : TX (requête PC → DUT) ou RX
+(réponse DUT → PC). Toutes les injections sont déterministes (seed) et vérifiées :
+le runner refuse un scénario dont la défaut configuré n'a pas été réellement appliqué.
+
+| Défaut | Point | Effet observable |
+|---|---|---|
+| `drop` | TX | la requête n'atteint jamais le DUT → timeout |
+| `delay_ms` | TX | la requête est retardée ; au-delà du timeout → timeout |
+| `duplicate` | TX | la requête est envoyée deux fois |
+| `corrupt_crc` | TX | CRC invalide → trame rejetée par le DUT |
+| `truncate` | TX | trame incomplète → rejetée sans crash |
+| `drop_response` | RX | la requête atteint le DUT, la réponse est perdue ; l'effet DUT reste vérifiable |
+| `delay_response_ms` | RX | la réponse arrive en retard ; au-delà du timeout → timeout |
+
+Exemple de scénario (campagne robustness, TC-010) :
+
+```yaml
+- id: TC-010
+  action: write_single_register
+  inject:
+    drop_response: true
+  expect:
+    status: timeout
+    dut_output_state: 0x0000   # l'effet DUT est malgré tout vérifié
+```
+
+Limites : injection logique au niveau IPC (stdin/stdout du DUT hôte), pas
+d'injection électrique RS-485 ; un seul défaut par scénario ; après un timeout,
+la réponse tardive éventuelle est purgée avant la requête suivante (resync).
+
 ## Documentation
 
 Voir `docs/README.md` pour le plan en phases et `docs/SPEC.md` pour la spécification.
