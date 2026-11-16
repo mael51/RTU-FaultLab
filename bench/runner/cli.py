@@ -117,25 +117,35 @@ def main():
                     if cfg.delay_ms and cfg.delay_ms > camp.timeout_ms:
                         timed_out = True
                         continue
+                    if cfg.delay_ms and cfg.delay_ms > 0:
+                        time.sleep(cfg.delay_ms / 1000.0)
                     transport.write_request(f)
+                    remaining_timeout = camp.timeout_ms - (cfg.delay_ms or 0)
+                    if remaining_timeout < 1:
+                        remaining_timeout = 1
                     if cfg.drop_response:
                         # RX fault: the request reaches the DUT, the response
                         # is declared lost; the DUT effect remains checkable.
-                        transport.read_response(timeout_ms=camp.timeout_ms)
+                        transport.read_response(timeout_ms=remaining_timeout)
                         timed_out = True
                         continue
                     if cfg.delay_response_ms > camp.timeout_ms:
                         # RX delay beyond the runner timeout: declared lost
                         timed_out = True
+                        # consume the late response so it doesn't pollute the next request
+                        transport.read_response(timeout_ms=250)
                         transport.discard_next_response()
                         continue
                     if cfg.delay_response_ms:
-                        # RX delay: hold the response back deterministically
-                        time.sleep(cfg.delay_response_ms / 1000.0)
-                        remaining = camp.timeout_ms - cfg.delay_response_ms
-                        r = transport.read_response(timeout_ms=remaining)
-                    else:
+                        # RX delay within timeout: read with the full window
                         r = transport.read_response(timeout_ms=camp.timeout_ms)
+                        if r is None:
+                            timed_out = True
+                        else:
+                            response_hex = r
+                        continue
+                    else:
+                        r = transport.read_response(timeout_ms=remaining_timeout)
                     if r is None:
                         timed_out = True
                     else:

@@ -42,7 +42,10 @@ def check_expect(expect: dict, response_hex: str, dut_state: dict,
                  timed_out: bool, request_hex: str = None) -> bool:
     # --- expected timeout -------------------------------------------------
     if expect.get("status") == "timeout":
-        return timed_out
+        if not timed_out:
+            return False
+        # timeout validated; fall through to the independent assertions
+        # (e.g. dut_output_state) so they are never skipped.
     if timed_out and expect.get("status") != "timeout":
         return False
 
