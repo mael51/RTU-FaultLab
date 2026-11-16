@@ -37,7 +37,10 @@ jobs:
           cd build
           ./rtufaultlab_tests.exe
       - name: Format check
+        shell: bash
         run: |
+          # Pin the exact clang-format version so local and CI agree
+          pip install clang-format==20.1.0
           find firmware tests -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0 | xargs -0 -r clang-format --dry-run --Werror
       - name: Static analysis (cppcheck)
         run: |
@@ -46,16 +49,20 @@ jobs:
       - name: Python tests
         shell: bash
         run: |
+          # UCRT64 DLLs must be reachable for the DUT host binary
+          export PATH="/c/msys64/ucrt64/bin:$PATH"
           pip install pytest pyyaml
           python -m pytest tests/integration tests/unit/test_bench_runner.py -q
       - name: Smoke campaign
         shell: bash
         run: |
+          export PATH="/c/msys64/ucrt64/bin:$PATH"
           python bench/runner/cli.py bench/campaigns/smoke.yaml --dut build/rtufaultlab_dut_host.exe --reports bench/reports
       - name: Robustness campaign
         if: success() || failure()
         shell: bash
         run: |
+          export PATH="/c/msys64/ucrt64/bin:$PATH"
           python bench/runner/cli.py bench/campaigns/robustness.yaml --dut build/rtufaultlab_dut_host.exe --reports bench/reports
       - name: Upload campaign reports
         if: always()
@@ -111,10 +118,13 @@ jobs:
       - name: Capture coverage
         working-directory: build
         run: |
-          # lcov 2.x needs explicit ignore-errors for benign record classes;
-          # all other errors still abort the step (no || true, no masking).
+          # NOTE: no --no-external here: project sources live in the parent of
+          # build/ and would all be classified as external and dropped (root
+          # cause of the earlier empty-capture failures). Non-project files are
+          # filtered explicitly by the next step. lcov 2.x needs explicit
+          # ignore-errors for benign record classes; all other errors still
+          # abort the step (no || true, no masking).
           lcov --capture --directory . --output-file coverage.raw.info \
-               --no-external \
                --rc geninfo_unexecuted_blocks=1 \
                --ignore-errors mismatch,unused,empty,unsupported,inconsistent \
                --verbose
@@ -124,6 +134,15 @@ jobs:
           lcov --remove coverage.raw.info '/usr/*' '*/_deps/*' '*/tests/*' \
                --ignore-errors unused,unsupported \
                --output-file coverage.info
+      - name: Verify coverage is not empty
+        working-directory: build
+        run: |
+          n=$(grep -c '^SF:' coverage.info || true)
+          echo "source files in coverage.info: $n"
+          if [ "$n" -lt 1 ]; then
+            echo "ERROR: coverage.info contains no source records" >&2
+            exit 1
+          fi
       - name: List coverage
         working-directory: build
         run: lcov --list coverage.info
