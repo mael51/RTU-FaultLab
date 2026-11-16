@@ -83,6 +83,8 @@ constexpr uint16_t MAX_FRAME_BYTES = 256;
 constexpr uint8_t SLAVE_ADDRESS = 0x01;
 // DUT host receive queue bound (STAB-D03): overflow drops + diagnostic
 constexpr std::size_t MAX_QUEUE_LINES = 256;
+// Bounded IPC input (V1-B4): "REQ " + hex frame + newline, generous margin
+constexpr std::size_t MAX_IPC_LINE_CHARS = 4 + 2 * 256 + 16;
 }  // namespace cfg
 
 }  // namespace rtu

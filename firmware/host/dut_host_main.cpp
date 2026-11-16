@@ -21,16 +21,38 @@
 
 using namespace rtu;
 
+static bool hexVal(char c, uint8_t& out) {
+    if (c >= '0' && c <= '9') {
+        out = static_cast<uint8_t>(c - '0');
+        return true;
+    }
+    if (c >= 'a' && c <= 'f') {
+        out = static_cast<uint8_t>(c - 'a' + 10);
+        return true;
+    }
+    if (c >= 'A' && c <= 'F') {
+        out = static_cast<uint8_t>(c - 'A' + 10);
+        return true;
+    }
+    return false;
+}
+
+// Strict hex decode (V1-B4): only spaces/tabs allowed between hex pairs;
+// any other character, odd digit count or oversized input is rejected.
 static std::vector<uint8_t> hexDecode(const std::string& s) {
     std::vector<uint8_t> out;
     std::string t;
-    for (char c : s)
-        if (c != ' ') t.push_back(c);
-    if (t.size() % 2 != 0) return out;
+    t.reserve(s.size());
+    for (char c : s) {
+        if (c == ' ' || c == '\t' || c == '\r') continue;
+        t.push_back(c);
+    }
+    if (t.empty() || t.size() % 2 != 0) return out;
+    if (t.size() / 2 > cfg::MAX_FRAME_BYTES) return out;
     for (std::size_t i = 0; i < t.size(); i += 2) {
-        unsigned int b = 0;
-        sscanf(t.c_str() + i, "%2x", &b);
-        out.push_back(static_cast<uint8_t>(b));
+        uint8_t hi = 0, lo = 0;
+        if (!hexVal(t[i], hi) || !hexVal(t[i + 1], lo)) return {};
+        out.push_back(static_cast<uint8_t>((hi << 4) | lo));
     }
     return out;
 }
@@ -76,6 +98,11 @@ int main() {
                 eof = true;
                 qcv.notify_all();
                 break;
+            }
+            // Bounded input (V1-B4): reject oversized envelopes with a diagnostic
+            if (line.size() > cfg::MAX_IPC_LINE_CHARS) {
+                fprintf(stderr, "line too long (%zu chars), rejected\n", line.size());
+                continue;
             }
             {
                 std::lock_guard<std::mutex> lk(qmtx);
