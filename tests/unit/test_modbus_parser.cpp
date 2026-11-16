@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <vector>
 
 #include "firmware/core/modbus_crc.hpp"
@@ -341,7 +342,7 @@ TEST(ModbusHandler, FC03CapacityJustBelowNoWrite) {
     ModbusRequest req{};
     ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
     uint8_t resp[16] = {};
-    for (auto& b : resp) b = 0xAA;
+    std::fill(std::begin(resp), std::end(resp), 0xAA);
     int n = handleModbusRequest(req, regs, resp, 16);
     EXPECT_EQ(n, 0);
     EXPECT_EQ(resp[0], 0xAA);  // nothing written
