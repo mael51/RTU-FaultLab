@@ -14,21 +14,31 @@ void putCrc(uint8_t* buf, std::size_t len) {
     buf[len] = static_cast<uint8_t>(crc & 0xFF);
     buf[len + 1] = static_cast<uint8_t>((crc >> 8) & 0xFF);
 }
+
+// Response lengths used for capacity checks (V1-B1).
+constexpr std::size_t EXCEPTION_LEN = 5;  // addr + func|0x80 + code + CRC
+constexpr std::size_t FC06_LEN = 8;       // addr + func + addr + value + CRC
 }  // namespace
 
 int handleModbusRequest(const ModbusRequest& req, RegisterMap& regs, uint8_t* response,
                         std::size_t resp_capacity) {
     if (response == nullptr) return 0;
 
+    // Exception helper: never writes beyond resp_capacity.
+    const auto writeException = [&](uint8_t code) -> int {
+        if (resp_capacity < EXCEPTION_LEN) return 0;
+        response[0] = req.slave;
+        response[1] = req.function | 0x80;
+        response[2] = code;
+        putCrc(response, 3);
+        return static_cast<int>(EXCEPTION_LEN);
+    };
+
     // FC03 - Read Holding Registers
     if (req.function == fc::READ_HOLDING_REGISTERS) {
         if (req.address < reg::FIRST || req.count == 0 || req.count > 125 ||
             (req.address + req.count) > (reg::LAST + 1)) {
-            response[0] = req.slave;
-            response[1] = fc::READ_HOLDING_REGISTERS | 0x80;
-            response[2] = exc::ILLEGAL_DATA_ADDRESS;
-            putCrc(response, 3);
-            return 5;
+            return writeException(exc::ILLEGAL_DATA_ADDRESS);
         }
         std::size_t byte_count = req.count * 2;
         std::size_t total = 3 + byte_count + 2;
@@ -49,25 +59,15 @@ int handleModbusRequest(const ModbusRequest& req, RegisterMap& regs, uint8_t* re
     // FC06 - Write Single Register
     if (req.function == fc::WRITE_SINGLE_REGISTER) {
         if (req.address < reg::FIRST || req.address > reg::LAST) {
-            response[0] = req.slave;
-            response[1] = fc::WRITE_SINGLE_REGISTER | 0x80;
-            response[2] = exc::ILLEGAL_DATA_ADDRESS;
-            putCrc(response, 3);
-            return 5;
+            return writeException(exc::ILLEGAL_DATA_ADDRESS);
         }
         if (!regs.writable(req.address)) {
-            response[0] = req.slave;
-            response[1] = fc::WRITE_SINGLE_REGISTER | 0x80;
-            response[2] = exc::ILLEGAL_DATA_ADDRESS;
-            putCrc(response, 3);
-            return 5;
+            return writeException(exc::ILLEGAL_DATA_ADDRESS);
         }
+        // Echo response: capacity checked BEFORE any state mutation (V1-B1).
+        if (resp_capacity < FC06_LEN) return 0;
         if (!regs.write(req.address, req.value)) {
-            response[0] = req.slave;
-            response[1] = fc::WRITE_SINGLE_REGISTER | 0x80;
-            response[2] = exc::ILLEGAL_DATA_VALUE;
-            putCrc(response, 3);
-            return 5;
+            return writeException(exc::ILLEGAL_DATA_VALUE);
         }
 
         response[0] = req.slave;
@@ -77,15 +77,11 @@ int handleModbusRequest(const ModbusRequest& req, RegisterMap& regs, uint8_t* re
         response[4] = static_cast<uint8_t>((req.value >> 8) & 0xFF);
         response[5] = static_cast<uint8_t>(req.value & 0xFF);
         putCrc(response, 6);
-        return 8;
+        return static_cast<int>(FC06_LEN);
     }
 
     // Unsupported function
-    response[0] = req.slave;
-    response[1] = req.function | 0x80;
-    response[2] = exc::ILLEGAL_FUNCTION;
-    putCrc(response, 3);
-    return 5;
+    return writeException(exc::ILLEGAL_FUNCTION);
 }
 
 }  // namespace rtu

@@ -281,3 +281,92 @@ TEST(ModbusHandler, UnsupportedFunction) {
     EXPECT_EQ(resp[1], 0x85);
     EXPECT_EQ(resp[2], exc::ILLEGAL_FUNCTION);
 }
+
+// ---------------------------------------------------------------------------
+// Buffer capacity handling (V1-B1)
+// ---------------------------------------------------------------------------
+
+TEST(ModbusHandler, ExceptionFitsExactlyCapacity5) {
+    RegisterMap regs;
+    auto f = buildFrame(0x01, 0x05, 0x0000, 0x0000);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    uint8_t resp[5]{};
+    int n = handleModbusRequest(req, regs, resp, 5);
+    EXPECT_EQ(n, 5);
+    EXPECT_EQ(resp[1], 0x85);
+}
+
+TEST(ModbusHandler, ExceptionTooSmallCapacity4NoWrite) {
+    RegisterMap regs;
+    auto f = buildFrame(0x01, 0x05, 0x0000, 0x0000);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    uint8_t resp[4] = {0xAA, 0xBB, 0xCC, 0xDD};
+    int n = handleModbusRequest(req, regs, resp, 4);
+    EXPECT_EQ(n, 0);
+    // nothing written
+    EXPECT_EQ(resp[0], 0xAA);
+    EXPECT_EQ(resp[1], 0xBB);
+}
+
+TEST(ModbusHandler, FC06Capacity7NoStateMutation) {
+    RegisterMap regs;
+    auto f = buildFrame(0x01, fc::WRITE_SINGLE_REGISTER, reg::CONTROL_WORD, 0x0003);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    uint8_t resp[7] = {};
+    int n = handleModbusRequest(req, regs, resp, 7);
+    EXPECT_EQ(n, 0);
+    // register must NOT be modified when the response cannot be built
+    EXPECT_EQ(regs.read(reg::CONTROL_WORD), 0x0000);
+    EXPECT_EQ(regs.read(reg::OUTPUT_STATE), 0x0000);
+}
+
+TEST(ModbusHandler, FC06Capacity8Ok) {
+    RegisterMap regs;
+    auto f = buildFrame(0x01, fc::WRITE_SINGLE_REGISTER, reg::CONTROL_WORD, 0x0003);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    uint8_t resp[8]{};
+    int n = handleModbusRequest(req, regs, resp, 8);
+    EXPECT_EQ(n, 8);
+    EXPECT_EQ(regs.read(reg::CONTROL_WORD), 0x0003);
+}
+
+TEST(ModbusHandler, FC03CapacityJustBelowNoWrite) {
+    RegisterMap regs;
+    // Full range read: total = 3 + 12 + 2 = 17
+    auto f = buildFrame(0x01, fc::READ_HOLDING_REGISTERS, reg::FIRST, reg::COUNT);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    uint8_t resp[16] = {};
+    for (auto& b : resp) b = 0xAA;
+    int n = handleModbusRequest(req, regs, resp, 16);
+    EXPECT_EQ(n, 0);
+    EXPECT_EQ(resp[0], 0xAA);  // nothing written
+}
+
+TEST(ModbusHandler, FC03CapacityExactlyOk) {
+    RegisterMap regs;
+    auto f = buildFrame(0x01, fc::READ_HOLDING_REGISTERS, reg::FIRST, reg::COUNT);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    uint8_t resp[17]{};
+    int n = handleModbusRequest(req, regs, resp, 17);
+    EXPECT_EQ(n, 17);
+}
+
+TEST(ModbusHandler, NullResponseBufferSafe) {
+    RegisterMap regs;
+    auto f = buildFrame(0x01, fc::READ_HOLDING_REGISTERS, reg::FIRST, reg::COUNT);
+    ModbusRequest req{};
+    ASSERT_TRUE(parseModbusRequest(f.data(), f.size(), 0x01, req));
+    EXPECT_EQ(handleModbusRequest(req, regs, nullptr, 256), 0);
+    // and a valid write must not have been executed either (no mutation)
+    auto f2 = buildFrame(0x01, fc::WRITE_SINGLE_REGISTER, reg::CONTROL_WORD, 0x0003);
+    ModbusRequest req2{};
+    ASSERT_TRUE(parseModbusRequest(f2.data(), f2.size(), 0x01, req2));
+    EXPECT_EQ(handleModbusRequest(req2, regs, nullptr, 256), 0);
+    EXPECT_EQ(regs.read(reg::CONTROL_WORD), 0x0000);
+}

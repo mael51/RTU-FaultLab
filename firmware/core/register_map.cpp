@@ -1,8 +1,6 @@
 #include "firmware/core/register_map.hpp"
 
-namespace {
-
-}  // namespace
+namespace {}  // namespace
 
 namespace rtu {
 

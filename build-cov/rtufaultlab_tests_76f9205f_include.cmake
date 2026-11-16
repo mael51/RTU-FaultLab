@@ -1,0 +1,5 @@
+if(EXISTS "C:/Users/m.agambimawo/Documents/Projet Perso/RTU-FaultLab/build-cov/rtufaultlab_tests_76f9205f_tests.cmake")
+  include("C:/Users/m.agambimawo/Documents/Projet Perso/RTU-FaultLab/build-cov/rtufaultlab_tests_76f9205f_tests.cmake")
+else()
+  add_test(rtufaultlab_tests_NOT_BUILT rtufaultlab_tests_NOT_BUILT)
+endif()

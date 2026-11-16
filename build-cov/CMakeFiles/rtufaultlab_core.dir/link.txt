@@ -1,0 +1,2 @@
+C:/msys64/mingw64/bin/ar.exe qc librtufaultlab_core.a CMakeFiles/rtufaultlab_core.dir/firmware/core/modbus_crc.cpp.obj CMakeFiles/rtufaultlab_core.dir/firmware/core/modbus_parser.cpp.obj CMakeFiles/rtufaultlab_core.dir/firmware/core/modbus_handler.cpp.obj CMakeFiles/rtufaultlab_core.dir/firmware/core/register_map.cpp.obj CMakeFiles/rtufaultlab_core.dir/firmware/core/safety_controller.cpp.obj
+C:/msys64/mingw64/bin/ranlib.exe librtufaultlab_core.a
