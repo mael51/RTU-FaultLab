@@ -142,6 +142,9 @@ def main():
                         response_hex = r
 
             # dut state: read output state register (None = unknown, V1-B3)
+            if timed_out:
+                # purge any late response before reading DUT state (P1-5)
+                transport.discard_next_response()
             state_frame = build_frame(1, "read_holding_registers", 0x0001, 0, 1)
             st_resp = transport.send_frame(state_frame, timeout_ms=camp.timeout_ms)
             dut_state = {"output_state": None}

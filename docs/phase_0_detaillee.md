@@ -152,7 +152,7 @@ RTU-FaultLab/
 ```bash
 # Configurer (MinGW dans le PATH)
 $env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
-cmake -G "MSYS Makefiles" -S . -B build
+cmake -G Ninja -S . -B build
 
 # Compiler
 cmake --build build
@@ -214,7 +214,7 @@ La **Phase 1** consistera à :
 ```bash
 # Configurer (première fois ou après suppression de build/)
 $env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
-cmake -G "MSYS Makefiles" -S . -B build
+cmake -G Ninja -S . -B build
 
 # Compiler
 cmake --build build

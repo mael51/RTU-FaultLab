@@ -79,7 +79,7 @@ python --version
 ## 🏗️ Compilation (hôte)
 
 ```bash
-cmake -G "MSYS Makefiles" -S . -B build
+cmake -G Ninja -S . -B build
 cmake --build build
 ```
 

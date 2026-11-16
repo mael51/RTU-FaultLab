@@ -37,7 +37,7 @@ int handleModbusRequest(const ModbusRequest& req, RegisterMap& regs, uint8_t* re
     // FC03 - Read Holding Registers
     if (req.function == fc::READ_HOLDING_REGISTERS) {
         if (req.address < reg::FIRST || req.count == 0 || req.count > 125 ||
-            (req.address + req.count) > (reg::LAST + 1)) {
+            static_cast<uint32_t>(req.address) + req.count > (reg::LAST + 1)) {
             return writeException(exc::ILLEGAL_DATA_ADDRESS);
         }
         std::size_t byte_count = req.count * 2;

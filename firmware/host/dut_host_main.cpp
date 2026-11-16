@@ -51,7 +51,10 @@ static std::vector<uint8_t> hexDecode(const std::string& s) {
     if (t.size() / 2 > cfg::MAX_FRAME_BYTES) return out;
     for (std::size_t i = 0; i < t.size(); i += 2) {
         uint8_t hi = 0, lo = 0;
-        if (!hexVal(t[i], hi) || !hexVal(t[i + 1], lo)) return {};
+        if (!hexVal(t[i], hi) || !hexVal(t[i + 1], lo)) {
+            out.clear();
+            return out;
+        }
         out.push_back(static_cast<uint8_t>((hi << 4) | lo));
     }
     return out;
@@ -168,8 +171,7 @@ int main() {
                                 regs.write(reg::CONTROL_WORD, req.value);
                                 if (safety.state() == SafetyState::READY) {
                                     safety.activate();
-                                } else if (safety.state() == SafetyState::RECOVERY_PENDING ||
-                                           safety.state() == SafetyState::SAFE_TIMEOUT) {
+                                } else if (safety.state() == SafetyState::RECOVERY_PENDING) {
                                     safety.recover();
                                 } else if (safety.state() == SafetyState::RUNNING) {
                                     safety.applyControlWord(req.value);

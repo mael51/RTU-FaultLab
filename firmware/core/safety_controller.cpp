@@ -75,7 +75,7 @@ void SafetyController::recover() {
 void SafetyController::activate() {
     if (state_ == SafetyState::READY) {
         state_ = SafetyState::RUNNING;
-        regs_.setDeviceStatusBit(status::READY, true);
+        regs_.setDeviceStatusBit(status::READY, false);
         applyOutputs(regs_.read(reg::CONTROL_WORD));
         last_heartbeat_ms_ = clock_.nowMs();
     }

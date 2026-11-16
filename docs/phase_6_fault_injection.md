@@ -3,6 +3,11 @@
 **Statut** : ✅ Validée
 **Objectif** : Implémenter le Fault Injection Engine côté banc Python : suppression, retard, duplication, corruption CRC, déterministe par seed (jalon M3).
 
+> Mise à jour V1.0 : les défauts sont classés par point d'application — TX (requête
+> PC → DUT : `drop`, `delay_ms`, `duplicate`, `corrupt_crc`, `truncate`) et RX
+> (réponse DUT → PC : `drop_response`, `delay_response_ms`). La table complète et les
+> limites sont dans le README (section « Injection de défauts »).
+
 ```mermaid
 flowchart LR
     F[Frame hex] --> I[FaultInjector]

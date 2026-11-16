@@ -15,7 +15,7 @@
 ## Build cross
 
 ```bash
-cmake -G "MSYS Makefiles" \
+cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="firmware/stm32/toolchain-arm.cmake" \
   -DCROSS_COMPILE=ON -S . -B build_stm32
 cmake --build build_stm32
