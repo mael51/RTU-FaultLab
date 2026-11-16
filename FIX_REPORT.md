@@ -25,7 +25,7 @@ L'essentiel du code est sain après la stabilisation V1.0. Les deux points P0 re
 
 **Fichier** : `firmware/host/dut_host_main.cpp`, lignes 160-178.
 
-**Constat**. Lors d'une écriture `CONTROL_WORD` pendant l'état `SAFE_TIMEOUT`, le code fait :
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`) — la branche `SAFE_TIMEOUT` a été retirée du chemin `recover()` automatique ; la réactivation requiert désormais `RECOVERY_PENDING` (heartbeat préalable), puis une écriture `CONTROL_WORD`. Un seul trame pendant `SAFE_TIMEOUT` ne réarme plus les sorties.
 
 ```cpp
 regs.write(reg::CONTROL_WORD, req.value);          // (1) mutation immédiate
@@ -48,9 +48,9 @@ safety.heartbeat(0);                              // (3) refresh fenêtre
 
 ### P0-2 — Débordement arithmétique dans la validation de plage FC03
 
-**Fichier** : `firmware/core/modbus_parser.cpp`, ligne 33-41 (et `modbus_handler.cpp` ligne 39).
+**Fichier** : `firmware/core/modbus_handler.cpp`, ligne 39.
 
-**Constat**. `req.address` et `req.count` sont `uint16_t`. L'expression `(req.address + req.count)` peut déborder (wraparound) si un trame malformée fournit des valeurs extrêmes. Dans `modbus_handler`, le test `(req.address + req.count) > (reg::LAST + 1)` pourrait alors être contourné.
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`) — comparaison en `uint32_t`.
 
 **Impact** : contournement théorique de la vérification de plage (faible probabilité car `len` est borné à 8 octets, donc `count` ≤ 0xFFFF mais l'adresse aussi ; le débordement reste possible).
 
@@ -79,6 +79,8 @@ if (static_cast<uint32_t>(req.address) + req.count > reg::LAST + 1) { ... }
 
 ### P1-2 — `activate()` positionne le bit `READY` alors que l'état devient `RUNNING`
 
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`) — `READY` est maintenant effacé à l'activation.
+
 **Fichier** : `firmware/core/safety_controller.cpp`, ligne 78.
 
 **Constat**. `regs_.setDeviceStatusBit(status::READY, true)` est appelé lors de la transition `READY → RUNNING`. Sémantiquement, le bit `READY` devrait être effacé et un bit `RUNNING` (inexistant aujourd'hui) positionné. Le registre `DEVICE_STATUS` n'a pas de bit `RUNNING`.
@@ -100,6 +102,8 @@ if (static_cast<uint32_t>(req.address) + req.count > reg::LAST + 1) { ... }
 **Fix (V1.1)** : corrélation par identifiant de requête (compteur dans l'enveloppe) plutôt que séquentielle.
 
 ### P1-5 — `cli.py` : lecture d'état après un scénario timeout
+
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`) — `discard_next_response()` appelé avant la lecture d'état à chaque timeout.
 
 **Fichier** : `bench/runner/cli.py`, bloc post-scénario.
 
@@ -127,17 +131,23 @@ if (static_cast<uint32_t>(req.address) + req.count > reg::LAST + 1) { ... }
 
 ### P2-2 — `hexDecode` mélange `out` (vide par défaut) et `{}` (retour explicite)
 
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`).
+
 **Fichier** : `firmware/host/dut_host_main.cpp`, lignes 42-58.
 
 Dans le cas « caractère non hex », la fonction retourne `{}` (vecteur vide) au lieu de `out` (aussi vide). Indiscernable pour l'appelant, mais incohérent. Uniformiser sur `return out;` après avoir vidé `out`.
 
 ### P2-3 — Documentation : références `MSYS Makefiles` obsolètes
 
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`) — remplacé par `Ninja` dans les docs de phase.
+
 **Fichiers** : `docs/phase_0_setup.md`, `docs/phase_0_detaillee.md`, `docs/hardware_guide.md`.
 
 Le README et la CI utilisent Ninja/UCRT64. Les docs de phase mentionnent encore `cmake -G "MSYS Makefiles"`. Mettre à jour pour cohérence (le plan §4 l'exige).
 
 ### P2-4 — `phase_6_fault_injection.md` ne documente pas les défauts RX
+
+**Statut** : ✅ **FIXÉ** (commit `475eb3c`) — note ajoutée référençant le README.
 
 **Fichier** : `docs/phase_6_fault_injection.md`.
 
