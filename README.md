@@ -34,18 +34,18 @@ comme validé.
 
 ```mermaid
 flowchart LR
-    subgraph Bench["Bench Python"]
+    subgraph Bench["Banc Python"]
         CLI[runner CLI]
         OR[Oracle]
-        CAM[Campaigns YAML]
-        INJ[Fault Injector]
+        CAM[Campagnes YAML]
+        INJ[Injecteur de défauts]
     end
     subgraph DUT["DUT hôte (C++17)"]
-        MP[Modbus Parser]
-        MH[Modbus Handler]
+        MP[Parseur Modbus]
+        MH[Gestionnaire Modbus]
         RM[RegisterMap]
-        SC[Safety Controller]
-        GM[GPIO mock]
+        SC[Contrôleur de sûreté]
+        GM[GPIO simulé]
     end
     CLI -->|REQ hex| MP
     MH -->|RESP hex| CLI
@@ -53,7 +53,7 @@ flowchart LR
     MH --> RM
     SC --> RM
     SC --> GM
-    INJ -.->|TX/RX faults| CLI
+    INJ -.->|défauts TX/RX| CLI
     CAM --> CLI
     CLI --> OR
     OR -->|verdict| CLI
