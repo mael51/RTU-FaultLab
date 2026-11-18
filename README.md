@@ -32,17 +32,31 @@ comme validé.
 
 ## Architecture (SIL)
 
-```text
-┌──────────────┐   REQ <hex>    ┌──────────────────┐
-│  Bench Python│ ─────────────► │  DUT host (C++17)│
-│  (runner,    │                │  Modbus RTU,     │
-│   oracle,    │ ◄───────────── │  Safety Ctrl,    │
-│   campaigns) │   RESP <hex>   │  RegisterMap     │
-└──────────────┘                └──────────────────┘
-       │ injection TX/RX (drop, delay, corrupt, …)
-       │ traçabilité exigence ↔ test (YAML)
-       ▼
-   rapports JUnit / JSON / HTML
+```mermaid
+flowchart LR
+    subgraph Bench["Bench Python"]
+        CLI[runner CLI]
+        OR[Oracle]
+        CAM[Campaigns YAML]
+        INJ[Fault Injector]
+    end
+    subgraph DUT["DUT hôte (C++17)"]
+        MP[Modbus Parser]
+        MH[Modbus Handler]
+        RM[RegisterMap]
+        SC[Safety Controller]
+        GM[GPIO mock]
+    end
+    CLI -->|REQ hex| MP
+    MH -->|RESP hex| CLI
+    MP --> MH
+    MH --> RM
+    SC --> RM
+    SC --> GM
+    INJ -.->|TX/RX faults| CLI
+    CAM --> CLI
+    CLI --> OR
+    OR -->|verdict| CLI
 ```
 
 - **Firmware** : C++17 portable, Modbus RTU (FC03 lecture, FC06 écriture), CRC16,
@@ -51,6 +65,23 @@ comme validé.
 - **Banc** : Python/Pytest, runner CLI, campagnes YAML, injection déterministe par seed,
   oracle strict (CRC y compris exceptions, état inconnu ≠ PASS, réponses tardives purgées).
 - **DUT hôte** : processus stdin/stdout, file bornée, décodage hex strict, arrêt propre.
+
+### Machine de sûreté
+
+```mermaid
+stateDiagram-v2
+    [*] --> BOOT_SAFE
+    BOOT_SAFE --> READY : heartbeat
+    READY --> RUNNING : activate (CONTROL_WORD valide)
+    RUNNING --> SAFE_TIMEOUT : watchdog expiré (elapsed > 1000 ms)
+    SAFE_TIMEOUT --> RECOVERY_PENDING : heartbeat
+    RECOVERY_PENDING --> RUNNING : CONTROL_WORD valide (recover)
+    RUNNING --> RUNNING : applyControlWord
+    note right of SAFE_TIMEOUT
+      Sorties OFF, heartbeat seul
+      ne réarme pas les sorties
+    end note
+```
 
 ## Statut
 
